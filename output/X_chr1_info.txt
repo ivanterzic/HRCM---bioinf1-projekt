@@ -1,0 +1,7 @@
+identifier: X_chr1.fa
+to-be-compressed B sequence:
+AGCTGGGCCCTTTTTCCCGGGAAATTT
+to-be-compressed lowercase information: [12, 4] [19, 3] [37, 3] [43, 7] 
+N character information: [16, 3] 
+other character information: [12, a] [13, a] [14, g] [15, g] [16, N] [17, N] [18, N] [19, n] [20, n] [21, n] [22, X] [23, X] [24, X] [37, a] [38, a] [39, a] [43, c] [44, c] [45, c] [46, t] [47, t] [48, t] [49, g] 
+line width: 25
