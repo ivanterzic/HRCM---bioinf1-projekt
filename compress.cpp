@@ -2,56 +2,60 @@
 #include <fstream>
 #include <string>
 #include <vector>
-#include <map>
-#include <algorithm>
+#include <cctype> // Include the <cctype> header for the correct overload of tolower function
 
 using namespace std;
 
-// Struct to represent N character information
-struct NInfo {
-    int start;
+// Struct za predstavljanje informacija o substringu, to je za N i lowercase
+struct substringInfo {
+    int startFromLastElement;
     int length;
 };
 
-// Struct to represent special character information
+// Struct za predstavljanje informacija o specijalnim karakterima
 struct SpecialCharInfo {
     int position;
     char character;
 };
 
-// Struct to represent sequence information
+// Struct za predstavljanje informacija o sekvenci, to-be-compressed sekvenci
 struct SequenceInfo {
     string identifier;
     string sequence;
-    vector<pair<int,int>> lowercaseInfo;
-    vector<NInfo> nInfo;
+    vector<substringInfo> lowercaseInfo;
+    vector<substringInfo> nInfo;
     vector<SpecialCharInfo> specialCharInfo;
     int lineWidth;
 };
 
-//razdvoji sequence info, razdvoji funkciju za to be compressed i reference sequence
-
-// Function to extract the sequence information
-SequenceInfo extractSequenceInfo(string filename, SequenceInfo& seqInfo)
-{
-    ifstream file(filename);
-    string line;
+// Struct za predstavljanje informacija o referentnoj sekvenci, reference sequence u originalnom radu
+struct ReferenceSequenceInfo {
+    string identifier;
     string sequence;
+    vector<substringInfo> lowercaseInfo;
+};
+
+// funkcija za ekstrakciju informacija iz sekvence, to-be-compressed sekvence
+// 3.1 Sequence information extraction za to be compressed sekvencu
+inline void extractSequenceInfo(string filename, SequenceInfo& seqInfo){
+    // ucitavanje filea
+    ifstream file(filename);
+    string line, sequence = "";
     int lineCount = 0;
     while (getline(file, line)){
         if (lineCount == 0){
             seqInfo.identifier = line;
-        } else if (lineCount == 1){
-            seqInfo.lineWidth = line.size(); 
-            sequence += line;
-        }
-        else {
+        } else {
+            if (lineCount == 1){
+                seqInfo.lineWidth = line.size();
+            }
             sequence += line;
         }
         ++lineCount;
     }
     file.close();
-    cout << "Sequence: " << sequence << endl;
+
+
     int lowercaseStart = -1;
     int lowercaseLength = 0;
     int distanceFromLastLowercase = 0;
@@ -60,26 +64,35 @@ SequenceInfo extractSequenceInfo(string filename, SequenceInfo& seqInfo)
     int nStart = -1;
     int nLength = 0;
 
-    for (int i = 0; i < sequence.size(); ++i){
+    // izvlacenje informacija o N, lowercase i specijalnim karakterima
+    // sve radim u istoj petlji, u istom prolaženju kroz sekvencu i onda stedim resurse
+    // dakle, pamtim pocetak i duzinu svakog substringa te kad on zavrsi onda ga dodam u vektor i restartam brojace
+    for (unsigned int i = 0; i < sequence.size(); ++i){
+        // ako je karakter mala slova, onda ga pretvaram u veliko i povecavam duzinu lowercase substringa
         if (islower(sequence[i])){
             if (lowercaseStart == -1){
+                //ako vec postoji zapis, gledam od njega, inace od trenutnog indexa
                 if (seqInfo.lowercaseInfo.size() > 0){
                     lowercaseStart = distanceFromLastLowercase;
                 } else {    
                     lowercaseStart = i;
                 }
             }
+            // pretvaram u veliko slovo i povecavam duzinu
             sequence[i] = toupper(sequence[i]);
             ++lowercaseLength;
         } else {
+            // ako je veliko slovo, onda ako postoji trenutni substirng malih slova, dodajem ga u vektor i restartam brojace
             if (lowercaseStart != -1){
-                seqInfo.lowercaseInfo.push_back(make_pair(lowercaseStart, lowercaseLength));
+                seqInfo.lowercaseInfo.push_back({lowercaseStart, lowercaseLength});
                 lowercaseStart = -1;
                 lowercaseLength = 0;
                 distanceFromLastLowercase = 0;
             }
+            // ako ne postoji trenutan niz, povacavam brojac
             distanceFromLastLowercase++;
         }
+        // analogno za N
         if (sequence[i] == 'N'){
             if (nStart == -1){
                 if (seqInfo.nInfo.size() > 0){
@@ -92,9 +105,6 @@ SequenceInfo extractSequenceInfo(string filename, SequenceInfo& seqInfo)
         } else {
             if (nStart != -1){
                 seqInfo.nInfo.push_back({nStart, nLength});
-                // delete the N characters
-                sequence.erase(sequence.begin() + i - nLength, sequence.begin() + i);
-                i -= nLength;
                 nStart = -1;
                 nLength = 0;
                 distanceFromLastN = 0;
@@ -102,92 +112,95 @@ SequenceInfo extractSequenceInfo(string filename, SequenceInfo& seqInfo)
             }
             distanceFromLastN++;
         }
+        // ako je specijalni karakter, dodajem ga u vektor, nemma brojac duljine jer se oni gledaju zasebno
         if (sequence[i] == 'X' || sequence[i] == 'x' || sequence[i] == '-'){
             seqInfo.specialCharInfo.push_back({distanceFromLastSpecialChar, sequence[i]});
             distanceFromLastSpecialChar = 0;
-            //delete the special character
-            sequence.erase(sequence.begin() + i);
-            --i;
         } else {
             distanceFromLastSpecialChar++;
         }
     }
+    // dodadavnje ako je ostao zaostalih nizova
     if (lowercaseStart != -1){
-        seqInfo.lowercaseInfo.push_back(make_pair(lowercaseStart, lowercaseLength));
+        seqInfo.lowercaseInfo.push_back({lowercaseStart, lowercaseLength});
     }
     if (nStart != -1){
         seqInfo.nInfo.push_back({nStart, nLength});
     }
-
-    cout << "Uppercase Sequence: " << sequence << endl;
     
-    cout << "Lowercase Info: ";
-    for (auto& info : seqInfo.lowercaseInfo){
-        cout << "(" << info.first << "," << info.second << ") ";
+    seqInfo.sequence = sequence; 
+
+    //brisem sve N i specijalne karaktere iz sekvence
+    for (unsigned int i = 0; i < seqInfo.sequence.size(); ++i){
+        if (seqInfo.sequence[i] == 'N' || seqInfo.sequence[i] == 'X' || seqInfo.sequence[i] == 'x' || seqInfo.sequence[i] == '-'){
+            seqInfo.sequence.erase(i, 1);
+            --i;
+        }
     }
-    cout << endl;
-    cout << "N Info: ";
-    for (auto& info : seqInfo.nInfo){
-        cout << "(" << info.start << "," << info.length << ") ";
-    }
-    cout << endl;
-    cout << "Special Char Info: ";
-    for (auto& info : seqInfo.specialCharInfo){
-        cout << "(" << info.position << "," << info.character << ") ";
-    }
-    cout << endl;
-    seqInfo.sequence = sequence;    
-    return seqInfo;
 }
 
-void originalSequenceFromSequenceInfo(SequenceInfo seqInfo){
-    int nextNIndex, nextSpecialIndex;
-    int lastNIndex = 0, lastSpecialIndex = 0;
-    seqInfo.nInfo.size() > 0 ? nextNIndex = seqInfo.nInfo[0].start : nextNIndex = INT8_MAX;
-    seqInfo.specialCharInfo.size() > 0 ? nextSpecialIndex = seqInfo.specialCharInfo[0].position : nextSpecialIndex = INT8_MAX;
-    while (nextNIndex != INT8_MAX || nextSpecialIndex != INT8_MAX){
-        if (nextSpecialIndex < nextNIndex){
-            lastSpecialIndex += seqInfo.specialCharInfo[0].position;
-            seqInfo.sequence.insert(nextSpecialIndex, 1, seqInfo.specialCharInfo[0].character);
-            seqInfo.specialCharInfo.erase(seqInfo.specialCharInfo.begin());
-            seqInfo.specialCharInfo.size() > 0 ? nextSpecialIndex = seqInfo.specialCharInfo[0].position + lastSpecialIndex : nextSpecialIndex = INT8_MAX;
+// funckija za ekstrakciju informacija iz referentne sekvence
+// 3.1 Reference sequence information extraction
+inline void extractReferenceSequenceInfo(string filename, ReferenceSequenceInfo& refSeqInfo){
+    // ucitavanje filea
+    ifstream file(filename);
+    string line, sequence = "";
+    int lineCount = 0;
+    while (getline(file, line)){
+        if (lineCount == 0){
+            refSeqInfo.identifier = line;
         } else {
-            lastNIndex += seqInfo.nInfo[0].start + seqInfo.nInfo[0].length;
-            seqInfo.sequence.insert(nextNIndex, seqInfo.nInfo[0].length, 'N');
-            seqInfo.nInfo.erase(seqInfo.nInfo.begin());
-            seqInfo.nInfo.size() > 0 ? nextNIndex = seqInfo.nInfo[0].start + lastNIndex : nextNIndex = INT8_MAX;
-            
+            sequence += line;
         }
-    }
-    #include <cctype> // Include the <cctype> header for the correct overload of tolower function
-
-    int nextLowercaseIndex = 0;
-    for (auto& info : seqInfo.lowercaseInfo) {
-        nextLowercaseIndex += info.first;
-        std::string substring = seqInfo.sequence.substr(nextLowercaseIndex, info.second);
-        for (char& c : substring) {
-            c = std::tolower(c); // Use std::tolower instead of tolower
-        }
-        seqInfo.sequence.replace(nextLowercaseIndex, info.second, substring);
-        nextLowercaseIndex += info.second;
-    }
-    cout << "Original Sequence: " << seqInfo.sequence << endl;
-    // print the original sequence to a file which is named as the identifier and the reference to the file with respect to the original sequence in lines
-    ofstream file(seqInfo.identifier + "_output.fa");
-    file << seqInfo.identifier << endl;
-    for (int i = 0; i < seqInfo.sequence.size(); i += seqInfo.lineWidth){
-        file << seqInfo.sequence.substr(i, seqInfo.lineWidth) << endl;
+        ++lineCount;
     }
     file.close();
-    
-}
 
-int main(){
-    SequenceInfo seqInfo;
-    seqInfo = SequenceInfo();
-    seqInfo = extractSequenceInfo("Y_chr1.fa", seqInfo);
-    string originalSeq = seqInfo.sequence;
-    originalSequenceFromSequenceInfo(seqInfo);
-    return 0;
+    // micanje svih slova koje nisu veliko ili malo acgt
+    for (unsigned int i = 0; i < sequence.size(); ++i){
+        if (!isalpha(sequence[i]) || 
+            (sequence[i] != 'A' && sequence[i] != 'C' && sequence[i] != 'G' && sequence[i] != 'T' && 
+            sequence[i] != 'a' && sequence[i] != 'c' && sequence[i] != 'g' && sequence[i] != 't')){
+            sequence.erase(i, 1);
+            --i;
+        }
+    }
+
+    int lowercaseStart = -1;
+    int lowercaseLength = 0;
+    int distanceFromLastLowercase = 0;
+
+    // izvlacenje informacija o malim slovima
+    for (unsigned int i = 0; i < sequence.size(); ++i){
+        // ako je karakter mala slova, onda ga pretvaram u veliko i povecavam duzinu lowercase substringa
+        if (islower(sequence[i])){
+            if (lowercaseStart == -1){
+                //ako vec postoji zapis, gledam od njega, inace od trenutnog indexa
+                if (refSeqInfo.lowercaseInfo.size() > 0){
+                    lowercaseStart = distanceFromLastLowercase;
+                } else {    
+                    lowercaseStart = i;
+                }
+            }
+            // pretvaram u veliko slovo i povecavam duzinu
+            sequence[i] = toupper(sequence[i]);
+            ++lowercaseLength;
+        } else {
+            // ako je veliko slovo, onda ako postoji trenutni substirng malih slova, dodajem ga u vektor i restartam brojace
+            if (lowercaseStart != -1){
+                refSeqInfo.lowercaseInfo.push_back({lowercaseStart, lowercaseLength});
+                lowercaseStart = -1;
+                lowercaseLength = 0;
+                distanceFromLastLowercase = 0;
+            }
+            // ako ne postoji trenutan niz, povacavam brojac
+            distanceFromLastLowercase++;
+        }
+    }
+    // dodadavnje ako je ostao zaostalih nizova
+    if (lowercaseStart != -1){
+        refSeqInfo.lowercaseInfo.push_back({lowercaseStart, lowercaseLength});
+    }
+    refSeqInfo.sequence = sequence; 
+
 }
-    

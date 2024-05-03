@@ -1,7 +1,0 @@
-identifier: AGCTGGGCCCTTaaggtttnnnXXX
-to-be-compressed B sequence:
-TTTCCCGGGTTT
-to-be-compressed lowercase information: [16, 3] [22, 7] [16, 3] [22, 7] 
-N character information: [13, 3] 
-other character information: [0, â] [1, €] [2, ‰] [3, 	] [16, a] [17, a] [18, a] [22, c] [23, c] [24, c] [25, t] [26, t] [27, t] [28, g] [0, â] [1, €] [2, ‰] [3, 	] [13, N] [14, N] [15, N] [16, a] [17, a] [18, a] [22, c] [23, c] [24, c] [25, t] [26, t] [27, t] [28, g] 
-line width: 25
