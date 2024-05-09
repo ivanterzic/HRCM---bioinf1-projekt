@@ -5,19 +5,19 @@
 
 using namespace std;
 
-// Struct za predstavljanje informacija o substringu, to je za N i lowercase
+// struct for substring information
 struct substringInfo {
     int startFromLastElement;
     int length;
 };
 
-// Struct za predstavljanje informacija o specijalnim karakterima
+// struct for special character information
 struct SpecialCharInfo {
     int position;
     char character;
 };
 
-// Struct za predstavljanje informacija o sekvenci, to-be-compressed sekvenci
+// struct for sequence information
 struct SequenceInfo {
     string identifier;
     string sequence;
@@ -27,66 +27,74 @@ struct SequenceInfo {
     int lineWidth;
 };
 
-// Reverzan postupak, rekonstrukcija originalne sekvence iz informacija
-// 3.1 Sequence information extraction za to be compressed sekvencu, reverzno
+// reconstructing original sequence from sequence information
+// 3.1 Sequence information extraction for to-be-decompressed sequence
+// Ivan Terzic
 void originalSequenceFromSequenceInfo(string outputFileName, SequenceInfo& seqInfo){
-
-    // prvo cu rekonstruirati indekse za N i specijalne karaktere u originalnoj sekvenci da mogu onda za mala slova
+    // Firstly, the N characters and special characters are inserted into the sequence according to the information extracted from the sequence information.
+    // Because the N characters and special characters are inserted into the sequence in the order they appear in the sequence information, the order of the sequence information is important.
+    // Also lowercase includes n, so that needs to be done last
     int nextNIndex, nextSpecialIndex;
-    // postavljanje inicijalnih poziicija
-    // gledat cu na koji prvi indeks na idem da ne smrdam indekse kasnije
+    // setting up initial indexes
+    // if there are any n characters or special characters for reconstruction: set the next index to the first element of the vector
     seqInfo.nInfo.size() > 0 ? nextNIndex = seqInfo.nInfo[0].startFromLastElement : nextNIndex = -1;
     seqInfo.specialCharInfo.size() > 0 ? nextSpecialIndex = seqInfo.specialCharInfo[0].position : nextSpecialIndex = -1;
-    // dok god postoji n i speicjalnih znakova za rekonstrukciju
+    // while there are still n characters or special characters to insert
     while (nextNIndex != -1 || nextSpecialIndex != -1){
-        // ako je indeks za N manji od indeksa za specijalne karaktere ili ako nema vise indeksa za specijalne karaktere
+        // if the index for n characters is smaller than the index for special characters or if there are no more indexes for n characters
         if (nextNIndex < nextSpecialIndex || nextSpecialIndex == -1){
-            seqInfo.sequence.insert(nextNIndex, seqInfo.nInfo[0].length, 'N'); // ubacujem N na indeksu
-            nextNIndex += seqInfo.nInfo[0].length; // povecavam indeks za ubacivanje N za duzinu N
-            seqInfo.nInfo.erase(seqInfo.nInfo.begin()); // brisem prvi element iz vektora koji sam upisao
-            if (seqInfo.nInfo.size() > 0){ // ako ima jos elemenata u vektoru, povecavam indeks za ubacivanje za duzinu od zadnjeg elementa
+            // insert N character at the index
+            seqInfo.sequence.insert(nextNIndex, seqInfo.nInfo[0].length, 'N'); 
+            // increase the index for insertion by the length of N
+            nextNIndex += seqInfo.nInfo[0].length; 
+            // remove the first element from the vector
+            seqInfo.nInfo.erase(seqInfo.nInfo.begin()); 
+            // if there are more elements in the vector, increase the index for insertion by the length of the last element
+            if (seqInfo.nInfo.size() > 0){
                 nextNIndex += seqInfo.nInfo[0].startFromLastElement;
-            } else { // ako vise nema elemenata, postavljam indeks na -1
+            } else { 
+                // if there are no more elements, set the index to -1
                 nextNIndex = -1;
             }
-        // ako je indeks za specijalne karaktere manji od indeksa za N ili ako nema vise indeksa za N
+        // if the index for special characters is smaller than the index for n characters or if there are no more indexes for n characters
         } else if (nextSpecialIndex <= nextNIndex || nextNIndex == -1){
-            seqInfo.sequence.insert(nextSpecialIndex, 1, seqInfo.specialCharInfo[0].character); // ubacujem specijalni karakter na indeksu
+            // insert special character at the index
+            seqInfo.sequence.insert(nextSpecialIndex, 1, seqInfo.specialCharInfo[0].character);
+            // increase the index for insertion by 1
             nextSpecialIndex += 1;
-            seqInfo.specialCharInfo.erase(seqInfo.specialCharInfo.begin()); // brisem prvi element iz vektora
+            // remove the first element from the vector
+            seqInfo.specialCharInfo.erase(seqInfo.specialCharInfo.begin()); 
             if (seqInfo.specialCharInfo.size() > 0){
-                // ako ima jos elemenata u vektoru, povecavam indeks za ubacivanje za duzinu od zadnjeg elementa
+                // if there are more elements in the vector, increase the index for insertion by the position of the last element
                 nextSpecialIndex += seqInfo.specialCharInfo[0].position;
             } else {
-                // ako vise nema elemenata, postavljam indeks na -1
+                // if there are no more elements, set the index to -1
                 nextSpecialIndex = -1;
             }
         } 
     }
-
-    // sad kad su svi indeksi okej vracam lowercase jer i N moze biti lowercase
+    // setting up the index for lowercase characters
     int nextLowercaseIndex = 0;
-    // prolazim kroz sve informacije o malim slovima
+    // for each substring in the vector of lowercase characters
     for (auto& info : seqInfo.lowercaseInfo) {
-        // indeks na kojem pocinje mala slova je indeks od zadnjeg elementa + 1
+        // increase the index for insertion by the position of the last element
         nextLowercaseIndex += info.startFromLastElement;
+        // extract the substring from the sequence
         std::string substring = seqInfo.sequence.substr(nextLowercaseIndex, info.length);
-        // pretvaram sva mala slova u velika
+        // convert the substring to lowercase
         for (char& c : substring) {
             c = std::tolower(c);
         }
-        // ubacujem substring u sekvencu
+        // replace the substring in the sequence with the lowercase substring
         seqInfo.sequence.replace(nextLowercaseIndex, info.length, substring);
         nextLowercaseIndex += info.length;
     }
     
-    // upisivanje u file
+    // Finally, the sequence is written to the output file.
     ofstream outputFile(outputFileName);
     outputFile << seqInfo.identifier << endl;
     for (unsigned int i = 0; i < seqInfo.sequence.size(); i += seqInfo.lineWidth){
-        if (i != 0) {
-            outputFile << endl;
-        }
+        if (i != 0) { outputFile << endl; }
     outputFile << seqInfo.sequence.substr(i, seqInfo.lineWidth);
 }
 
