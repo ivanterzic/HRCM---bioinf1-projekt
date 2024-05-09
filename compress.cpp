@@ -2,6 +2,7 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <math.h>
 #include <cctype> // Include the <cctype> header for the correct overload of tolower function
 
 using namespace std;
@@ -42,6 +43,10 @@ struct MatchedInfo {
     string mismatched;
 };
 
+// the length of k-mer, 14 is the default value in the paper, so it is used here as well
+const int kMerLength = 14; 
+// the length of the hash table, H in the paper, 2^(2*kMerLength) because there are 4 possible values for each character so 4^kMerLength possible k-mers since 2 bits are enough to represent 4 values
+const int hashTableLen =  pow(2, 2 * kMerLength);  
 
 
 // Function for extracting information from the sequence file
@@ -211,25 +216,107 @@ inline void extractReferenceSequenceInfo(string filename, ReferenceSequenceInfo&
     refSeqInfo.sequence = sequence; 
 }
 
-/*3.2. Sequence Information Matching
-At this stage, sequence information matching consists of two parts: one is B sequence matching, and the other is lowercase character information matching. B sequence matching is based on the reference B sequence to find matching segments in the to-be-compressed B sequence. If more than one sequences are to be compressed, HRCM employs the second-level matching automatically among the to-be-compressed sequences. The matching strategy of HRCM is selecting the longest match based on separate chaining.*/
+//3.2. Sequence Information Matching
+//3.2.1 First-Level Matching*/
+
+// translation of A, C, G, T to 0, 1, 2, 3
+// Ivan Terzic
+inline int charToNum(char c){
+	switch (c) {
+        case 'A': return 0;
+        case 'C': return 1;
+        case 'G': return 2;
+        case 'T': return 3;
+        default : return 4;
+	}
+}
+
+// Function for creating the k-mer hash table for the reference sequence
+// Ivan Terzic
+inline void createKMerHashTable(ReferenceSequenceInfo& refSeqInfo, vector<int>& H, vector<int>& L){
+	// the paper states: "All initial values of H are −1."
+	for (int i = 0; i < hashTableLen; i++){
+        H[i] = -1;
+    }
+	// calculatiing the value of the first k-mer, there isn't any shifting because it is the first k-mer
+    int value = 0;
+	for (int j = 0; j < kMerLength; j++) {
+        // shifting the value by 2 bits to the left, since a char is 2 bits in this case, 00, 01, 10, 11 for A, C, G, T
+		value *= 4;
+        // adding the value of the current character, going backwards because the first character is the last one in the k-mer, we want the character at the position kMerLength - 1 to have the most weight in the hash
+		value += charToNum(refSeqInfo.sequence[kMerLength - 1 - j]);
+	}
+    // as the paper states: "L[i] = H[valuei], H[valuei] = i.", "If the hash value of the i-th k-mer is expressed as valuei, at the stage of hash table creating, i will be stored in the valuei-th element of the array H, and the original value of the valuei-th element in the array H will be stored into the array L."
+	L[0] = H[value];
+	H[value] = 0;
+    // now, the sliding window slides forward one base character until the window cannot slide anymore, so the hash table builds all k-mer indexes of the reference B sequence, since we're going to be shifting, it is necessary to determine our shift bit number and the end of the shift
+    // the shiftSize is the number of bits we need to shift to the right to remove the last character from the k-mer
+	int shiftSize = (kMerLength * 2 - 2);
+    // the endGoal is the last possible position for the sliding window, so the last k-mer
+    int endGoal = refSeqInfo.sequence.size() - kMerLength + 1;
+    for (int i = 1; i < endGoal; i++) {
+        // shifting the value by 2 bits to the right, since we're removing the last character from the k-mer, that is the equivalent of dividing by 4
+        value /= 4;
+        // adding the value of the next character, in this case, the character at the position i + kMerLength - 1, since we're going to be adding the character at the end of the k-mer, we need to shift the value by the shiftSize to the left
+        // the i + kMerLength - 1 index is used because the k-mer is always kMerLength long, so the last character is at the position i + kMerLength - 1
+        value += (charToNum(refSeqInfo.sequence[i + kMerLength - 1])) << shiftSize;
+        // again, as stated in the paper, "L[i] = H[valuei], H[valuei] = i."
+        L[i] = H[value];
+        H[value] = i;
+    }
+}
+
 
 /*
-3.2.1. First-Level Matching
-
-In the first step, we create the hash table for reference B sequence. This manuscript creates the hash table based on k-mer, that is, k-mer hashing. It is just like a sliding window with slides of length k over the reference sequence and a window containing a k-mer. We digitally encode the A, C, G, T to 0, 1, 2, 3, respectively. In this way, the k-mer is converted into an integer sequence. Then we calculate the hash value of the k-mer. The calculation method assures that different k-mer hash values represent different k-mers. HRCM uses array H and array L to store the positions of all k-mers. All initial values of H are −1. If the hash value of the i-th k-mer is expressed as , at the stage of hash table creating, i will be stored in the -th element of the array H, and the original value of the -th element in the array H will be stored into the array L. The equation can be expressed as , . Thus, when an identical k-mer appears in the reference sequence, it will be stored in the array H if it is the last one, and otherwise, it will be stored in the array L. After calculating a k-mer hashing, the sliding window slides forward one base character until the window cannot slide anymore. Thus, the hash table builds all k-mer indexes of the reference B sequence.
-
- is calculated by the same formula for the to-be-compressed B sequence, and then the array H is checked to see if the value exists or not. If it does not exist, it means that the k-mer does not exist in the reference sequence, and the base is recorded as a mismatched character; otherwise, it indicates that the k-mer exists, and then searches will traverse all identical k-mers based on the chain constituted by the array H and the array L. The longest matching segment will be found, the length of the segment is taken as the length value, and the position of the segment in the reference B sequence is used as the position value. The matched segment is represented as a (position, length) tuple and the to-be-compressed segment is replaced. 
-*/
-
-/*3.2.1 First-Level Matching
-*/
-
-
-
-
-                
-        
-
+Input: reference B sequence: r seq; k-mer length: k; to-be-compressed B sequence: t seq; length of t seq: nt;
+Initialize lmax = k; posmax = 0;
+(1) Create hash table for reference B sequence;
+(2) for i = 0 to nt − k do
+(3) Calculate the hash value valuet
+i of the k-mer which starts from i in t seq;
+(4) pos = H[valueti]
+(5) if pos = − 1 then
+(6) t seq[i] is a mismatched character, recorded to the mismatched information;
+(7) else
+(8) while pos ≠ − 1 do
+(9) set l = k, p = pos;
+(10) while t seq[i + l] = r seq[p + l] do
+(11) l = l + 1;
+(12) end while
+(13) if lmax < l then
+(14) lmax = l, posmax = p;
+(15) end if
+(16) update pos = L[pos];
+(17) end while
+(18) end if
+(19) record the mismatched string to the mismatched information
+(20) record the matched string to the matched information
+(21) end for
+Output: matched entities (position, length, mismatched)*/
+// First level matching function
     
 
+inline void compress(){
+    
+    using namespace std;
+
+    cout << "Started" << endl;
+
+    ReferenceSequenceInfo refSeqInfo = ReferenceSequenceInfo();
+    SequenceInfo seqInfo = SequenceInfo();
+
+    extractReferenceSequenceInfo("../test_data/R1.fa", refSeqInfo);
+    extractSequenceInfo("../test_data/T1.fa", seqInfo);
+
+    cout << "Extracted reference sequence info: " << refSeqInfo.identifier << " " << refSeqInfo.sequence << endl;
+    cout << "Extracted sequence info: " << seqInfo.identifier << " " << seqInfo.sequence << endl;
+
+    vector<int> refBucket(hashTableLen);
+    vector<int> refLoc(refSeqInfo.sequence.size() - kMerLength + 1);
+    createKMerHashTable(refSeqInfo, refBucket, refLoc);
+
+    for (int i = 0; i < refBucket.size(); i++){
+        if (refBucket[i] != -1)
+            cout << "refBucket[" << i << "] = " << refBucket[i] << endl;
+    }
+}

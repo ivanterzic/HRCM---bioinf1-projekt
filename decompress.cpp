@@ -92,11 +92,17 @@ void originalSequenceFromSequenceInfo(string outputFileName, SequenceInfo& seqIn
     
     // Finally, the sequence is written to the output file.
     ofstream outputFile(outputFileName);
-    outputFile << seqInfo.identifier << endl;
-    for (unsigned int i = 0; i < seqInfo.sequence.size(); i += seqInfo.lineWidth){
-        if (i != 0) { outputFile << endl; }
-    outputFile << seqInfo.sequence.substr(i, seqInfo.lineWidth);
+        outputFile << seqInfo.identifier << endl;
+        for (unsigned int i = 0; i < seqInfo.sequence.size(); i += seqInfo.lineWidth){
+            if (i != 0) { outputFile << endl; }
+        outputFile << seqInfo.sequence.substr(i, seqInfo.lineWidth);
+    }
 }
+void decompress(){
+        // The sequence information is extracted from the compressed file.
+        string compressedFileName;
+        
 
+        return;
 }
 
