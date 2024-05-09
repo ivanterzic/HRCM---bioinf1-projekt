@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <math.h>
+#include <string>
 #include <cctype> // Include the <cctype> header for the correct overload of tolower function
 
 using namespace std;
@@ -44,9 +45,13 @@ struct MatchedInfo {
 };
 
 // the length of k-mer, 14 is the default value in the paper, so it is used here as well
-const int kMerLength = 14; 
+const int kMerLength = 2; 
 // the length of the hash table, H in the paper, 2^(2*kMerLength) because there are 4 possible values for each character so 4^kMerLength possible k-mers since 2 bits are enough to represent 4 values
 const int hashTableLen =  pow(2, 2 * kMerLength);  
+// the hash tables for the reference sequence, H and L, H is the hash table, L is the list
+extern vector<int> H;
+extern vector<int> L;
+
 
 
 // Function for extracting information from the sequence file
@@ -233,7 +238,7 @@ inline int charToNum(char c){
 
 // Function for creating the k-mer hash table for the reference sequence
 // Ivan Terzic
-inline void createKMerHashTable(ReferenceSequenceInfo& refSeqInfo, vector<int>& H, vector<int>& L){
+inline void createKMerHashTable(string& refSeqB){
 	// the paper states: "All initial values of H are −1."
 	for (int i = 0; i < hashTableLen; i++){
         H[i] = -1;
@@ -244,8 +249,9 @@ inline void createKMerHashTable(ReferenceSequenceInfo& refSeqInfo, vector<int>& 
         // shifting the value by 2 bits to the left, since a char is 2 bits in this case, 00, 01, 10, 11 for A, C, G, T
 		value *= 4;
         // adding the value of the current character, going backwards because the first character is the last one in the k-mer, we want the character at the position kMerLength - 1 to have the most weight in the hash
-		value += charToNum(refSeqInfo.sequence[kMerLength - 1 - j]);
+		value += charToNum(refSeqB[kMerLength - 1 - j]);
 	}
+    cout << "Value: " << value << " of the first k-mer: " << refSeqB.substr(0, kMerLength) << endl;
     // as the paper states: "L[i] = H[valuei], H[valuei] = i.", "If the hash value of the i-th k-mer is expressed as valuei, at the stage of hash table creating, i will be stored in the valuei-th element of the array H, and the original value of the valuei-th element in the array H will be stored into the array L."
 	L[0] = H[value];
 	H[value] = 0;
@@ -253,47 +259,108 @@ inline void createKMerHashTable(ReferenceSequenceInfo& refSeqInfo, vector<int>& 
     // the shiftSize is the number of bits we need to shift to the right to remove the last character from the k-mer
 	int shiftSize = (kMerLength * 2 - 2);
     // the endGoal is the last possible position for the sliding window, so the last k-mer
-    int endGoal = refSeqInfo.sequence.size() - kMerLength + 1;
+    int endGoal = refSeqB.size() - kMerLength + 1;
     for (int i = 1; i < endGoal; i++) {
         // shifting the value by 2 bits to the right, since we're removing the last character from the k-mer, that is the equivalent of dividing by 4
         value /= 4;
         // adding the value of the next character, in this case, the character at the position i + kMerLength - 1, since we're going to be adding the character at the end of the k-mer, we need to shift the value by the shiftSize to the left
         // the i + kMerLength - 1 index is used because the k-mer is always kMerLength long, so the last character is at the position i + kMerLength - 1
-        value += (charToNum(refSeqInfo.sequence[i + kMerLength - 1])) << shiftSize;
+        value += (charToNum(refSeqB[i + kMerLength - 1])) << shiftSize;
         // again, as stated in the paper, "L[i] = H[valuei], H[valuei] = i."
         L[i] = H[value];
         H[value] = i;
+        cout << "Value: " << value << " of the k-mer: " << refSeqB.substr(i, kMerLength) << endl;
     }
 }
 
+// First level matching function - this function performs the longest matching process, the pseudocode is taken from the paper and will be followed in this implementation
+// Ivan Terzic
+inline void firstLevelMatching(string &rSeq, string &tSeq, vector<MatchedInfo> &matchedInfo){
+    
+    int length_max = kMerLength, position_max = 0;
+    createKMerHashTable(rSeq);
+    /*cout << "Hash table" << endl;
+    for (int i = 0; i < hashTableLen; i++){
+        cout << "H[" << i << "] = " << H[i] << endl;
+    }
+    cout << "List" << endl;
+    for (int i = 0; i < L.size(); i++){
+        cout << "L[" << i << "] = " << L[i] << endl;
+    }*/
+    int i, k, position, previos_position = 0, length;
+    const int minimumReplaceLength = 0;
+    string mismatched = "";
+    for (i = 0; i < tSeq.size() - kMerLength + 1; i++){
+        cout << "----------------------------------" << endl;
+        int value = 0;
+        for (int j = 0; j < kMerLength; j++){
+            value /= 4;
+            value += charToNum(tSeq[i + j]) << (kMerLength * 2 - 2);
+        }
+        cout << "Value: " << value << " of the k-mer: " << tSeq.substr(i, kMerLength) << endl;
+        position = H[value];
+        if (position > -1) {
+            cout << "Matched string: " << tSeq.substr(i, kMerLength) << endl;
+            cout << "Position: " << position << endl;
+            cout << "Going further..." << endl;
 
-/*
-Input: reference B sequence: r seq; k-mer length: k; to-be-compressed B sequence: t seq; length of t seq: nt;
-Initialize lmax = k; posmax = 0;
-(1) Create hash table for reference B sequence;
-(2) for i = 0 to nt − k do
-(3) Calculate the hash value valuet
-i of the k-mer which starts from i in t seq;
-(4) pos = H[valueti]
-(5) if pos = − 1 then
-(6) t seq[i] is a mismatched character, recorded to the mismatched information;
-(7) else
-(8) while pos ≠ − 1 do
-(9) set l = k, p = pos;
-(10) while t seq[i + l] = r seq[p + l] do
-(11) l = l + 1;
-(12) end while
-(13) if lmax < l then
-(14) lmax = l, posmax = p;
-(15) end if
-(16) update pos = L[pos];
-(17) end while
-(18) end if
-(19) record the mismatched string to the mismatched information
-(20) record the matched string to the matched information
-(21) end for
-Output: matched entities (position, length, mismatched)*/
-// First level matching function
+            position_max = -1, length_max = -1;
+
+            while (position != -1){
+                length = kMerLength; int p = position;
+                cout << "Chars compared : refSeq[" << position + length << "] = " << rSeq[position] << " tSeq[" << i + length << "] = " << tSeq[i + length] << endl;
+                cout << "Length: " << length << endl;
+                while (i + length < tSeq.size() && 
+                        position + length < rSeq.size() && 
+                        tSeq[i + length] == rSeq[p + length]){
+                    cout << "Matching char: " << tSeq[i + length] << " " << rSeq[p + length] << endl;
+                    ++length;
+                }
+                if (length_max < length && length >= minimumReplaceLength){
+                    length_max = length;
+                    position_max = p;
+                }
+                position = L[position];
+                cout << "Changed position of the reference sequence: " << position << endl;
+            }
+
+            if (length_max != -1){
+                MatchedInfo matchedSegment;
+                matchedSegment.position = position_max - previos_position;
+                matchedSegment.length = length_max - minimumReplaceLength;
+                matchedSegment.mismatched = mismatched;
+                matchedInfo.push_back(matchedSegment);
+
+                i += length_max;
+                previos_position = position_max + length_max;
+                mismatched = "";
+                if (i < tSeq.size()){
+                    mismatched += tSeq[i];
+                }
+                continue;
+            }
+        }
+        mismatched += tSeq[i];
+    }
+    if (i < tSeq.size()){
+        for (; i < tSeq.size(); i++){
+            mismatched += tSeq[i];
+        }
+        MatchedInfo matchedSegment;
+        matchedSegment.position = 0;
+        matchedSegment.length = -minimumReplaceLength;
+        matchedSegment.mismatched = mismatched;
+        matchedInfo.push_back(matchedSegment);
+    }
+    
+
+    cout << "First level matching finished" << endl;
+    for (int i = 0; i < matchedInfo.size(); i++){
+        cout << matchedInfo[i].position << " " << matchedInfo[i].length << " " << matchedInfo[i].mismatched << endl;
+    }
+
+
+}
     
 
 inline void compress(){
@@ -311,12 +378,10 @@ inline void compress(){
     cout << "Extracted reference sequence info: " << refSeqInfo.identifier << " " << refSeqInfo.sequence << endl;
     cout << "Extracted sequence info: " << seqInfo.identifier << " " << seqInfo.sequence << endl;
 
-    vector<int> refBucket(hashTableLen);
-    vector<int> refLoc(refSeqInfo.sequence.size() - kMerLength + 1);
-    createKMerHashTable(refSeqInfo, refBucket, refLoc);
+    L.resize(refSeqInfo.sequence.size() - kMerLength + 1);
 
-    for (int i = 0; i < refBucket.size(); i++){
-        if (refBucket[i] != -1)
-            cout << "refBucket[" << i << "] = " << refBucket[i] << endl;
-    }
+    vector<MatchedInfo> matchedInfo;
+    firstLevelMatching(refSeqInfo.sequence, seqInfo.sequence, matchedInfo);
+
+    
 }
