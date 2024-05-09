@@ -2,13 +2,18 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <chrono>
 #include "compress.h"
 #include "decompress.h"
+
 
 using namespace std;
 
 int main(){ 
-    /*test*/
+
+    auto start = chrono::high_resolution_clock::now();
+
+
     string testFileName = "test-copy.fna";
     string outputFileName = "test-output.fna";
     SequenceInfo seqInfo = SequenceInfo();
@@ -36,5 +41,13 @@ int main(){
     } else {
         cout << "The original sequence has not been successfully reconstructed" << endl;
     }
+    
+
+    auto end = chrono::high_resolution_clock::now();
+    chrono::duration<double> elapsed = end - start;
+    cout << "Time taken to compress: " << elapsed.count() << "s" << endl;
     return 0;
+
+    
+
 }
