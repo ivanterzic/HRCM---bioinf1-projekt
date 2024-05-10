@@ -44,7 +44,7 @@ struct MatchedInfo {
     string mismatched;
 };
 
-// the length of k-mer, 14 is the default value in the paper, so it is used here as well
+// the length of k-mer, 14 is the default value in the original code, here the value has been changed for testing many times
 const int kMerLength = 2; 
 // the length of the hash table, H in the paper, 2^(2*kMerLength) because there are 4 possible values for each character so 4^kMerLength possible k-mers since 2 bits are enough to represent 4 values
 const int hashTableLen =  pow(2, 2 * kMerLength);  
@@ -276,80 +276,87 @@ inline void createKMerHashTable(string& refSeqB){
 // First level matching function - this function performs the longest matching process, the pseudocode is taken from the paper and will be followed in this implementation
 // Ivan Terzic
 inline void firstLevelMatching(string &rSeq, string &tSeq, vector<MatchedInfo> &matchedInfo){
-    
+    int tSeqLength = tSeq.size(), rSeqLength = rSeq.size();
+    // initialite l_max = k, pos_max = 0
     int length_max = kMerLength, position_max = 0;
+    // create the hash table for the reference sequence
     createKMerHashTable(rSeq);
-    /*cout << "Hash table" << endl;
-    for (int i = 0; i < hashTableLen; i++){
-        cout << "H[" << i << "] = " << H[i] << endl;
-    }
-    cout << "List" << endl;
-    for (int i = 0; i < L.size(); i++){
-        cout << "L[" << i << "] = " << L[i] << endl;
-    }*/
-    int i, k, position, previos_position = 0, length;
-    const int minimumReplaceLength = 0;
-    string mismatched = "";
-    for (i = 0; i < tSeq.size() - kMerLength + 1; i++){
-        cout << "----------------------------------" << endl;
-        int value = 0;
+    // loop variables and l and pos variables
+    int i, k, position, length;
+    int previos_position = 0;
+    //const int minimumReplaceLength = 0;
+    // initalization of the mismatchedInfo string
+    string mismatchedInfo = "";
+    // for i = 0 to n_t - k
+    for (i = 0; i < tSeqLength - kMerLength + 1; i++){
+        // Calculate the hash value value_t_T  of the k-mer which starts from i in t_seq
+        int kMerHashValue = 0;
         for (int j = 0; j < kMerLength; j++){
-            value /= 4;
-            value += charToNum(tSeq[i + j]) << (kMerLength * 2 - 2);
+            // the logic is the same as in hash table creation, but we're not storing the values in the hash table, we're just calculating the hash value
+            kMerHashValue /= 4;
+            kMerHashValue += charToNum(tSeq[i + j]) << (kMerLength * 2 - 2);
         }
-        cout << "Value: " << value << " of the k-mer: " << tSeq.substr(i, kMerLength) << endl;
-        position = H[value];
-        if (position > -1) {
-            cout << "Matched string: " << tSeq.substr(i, kMerLength) << endl;
-            cout << "Position: " << position << endl;
-            cout << "Going further..." << endl;
-
+        // pos = H[value_t_i]
+        position = H[kMerHashValue];
+        // if pos = -1 then
+        if (position == -1){
+            // t_seq[i] is a mismatched character, recorded to the mismatched information;
+            mismatchedInfo += tSeq[i];
+            continue;
+        }
+        else {
+            // variables used to determine the parameters of the longest matching segment
             position_max = -1, length_max = -1;
-
+            // while pos != -1 do
             while (position != -1){
+                // set l = k, p = pos
                 length = kMerLength; int p = position;
-                cout << "Chars compared : refSeq[" << position + length << "] = " << rSeq[position] << " tSeq[" << i + length << "] = " << tSeq[i + length] << endl;
-                cout << "Length: " << length << endl;
-                while (i + length < tSeq.size() && 
-                        position + length < rSeq.size() && 
-                        tSeq[i + length] == rSeq[p + length]){
-                    cout << "Matching char: " << tSeq[i + length] << " " << rSeq[p + length] << endl;
+                // while t_seq[i + l] = r_seq[p + l] do
+                // the resuts are the same with or without the length check, should we keep it or not?
+                while (tSeq[i + length] == rSeq[p + length] && i + length < tSeqLength && position + length < rSeqLength){
+                    // l = l + 1
                     ++length;
                 }
-                if (length_max < length && length >= minimumReplaceLength){
+                // if l_max < l then
+                if (length_max < length /*&& length >= minimumReplaceLength*/){
+                    // l_max = l, pos_max = p
                     length_max = length;
                     position_max = p;
                 }
+                // update p = L[p]
                 position = L[position];
-                cout << "Changed position of the reference sequence: " << position << endl;
             }
-
+            // record the mismatched string to the mismatched information
+            // record the matched string to the matched information
             if (length_max != -1){
-                MatchedInfo matchedSegment;
-                matchedSegment.position = position_max - previos_position;
-                matchedSegment.length = length_max - minimumReplaceLength;
-                matchedSegment.mismatched = mismatched;
+                MatchedInfo matchedSegment = {
+                    position = position_max - previos_position,
+                    length = length_max /*- minimumReplaceLength*/,
+                };
+                matchedSegment.mismatched = mismatchedInfo;                
                 matchedInfo.push_back(matchedSegment);
 
                 i += length_max;
                 previos_position = position_max + length_max;
-                mismatched = "";
-                if (i < tSeq.size()){
-                    mismatched += tSeq[i];
+                mismatchedInfo = "";
+                if (i < tSeqLength){
+                    mismatchedInfo += tSeq[i];
                 }
                 continue;
             }
         }
-        mismatched += tSeq[i];
+        
     }
-    if (i < tSeq.size()){
-        for (; i < tSeq.size(); i++){
-            mismatched += tSeq[i];
-        }
-        MatchedInfo matchedSegment;
-        matchedSegment.position = 0;
-        matchedSegment.length = -minimumReplaceLength;
-        matchedSegment.mismatched = mismatched;
+    // record all the remaining mismatched characters to the mismatched information, these are not in any k-mer
+    if (i < tSeqLength){
+        for (i; i < tSeqLength; i++)
+            mismatchedInfo += tSeq[i];
+        
+        MatchedInfo matchedSegment = {
+            position = 0,
+            length = 0, //-minimumReplaceLength,
+        };
+        matchedSegment.mismatched = mismatchedInfo;
         matchedInfo.push_back(matchedSegment);
     }
     
