@@ -163,7 +163,7 @@ inline void extractSequenceInfo(string filename, SequenceInfo& seqInfo){
 // Function for extracting information from the reference sequence file
 // 3.1 Sequence information extraction for the reference sequence
 // Ivan Terzic
-inline void extractReferenceSequenceInfo(string filename, ReferenceSequenceInfo& refSeqInfo){
+inline void extractReferenceSequenceInfo(string filename, ReferenceSequenceInfo& seqInfo){
 
     // file opening and reading
     ifstream file(filename);
@@ -171,54 +171,64 @@ inline void extractReferenceSequenceInfo(string filename, ReferenceSequenceInfo&
     int lineCount = 0;
     while (getline(file, line)){
         if (lineCount == 0){
-            refSeqInfo.identifier = line;
+            seqInfo.identifier = line;
         } else {
+            if (lineCount == 1){
+                //seqInfo.lineWidth = line.size();
+            }
             sequence += line;
         }
         ++lineCount;
     }
     file.close();
 
-    // removing all characters that are not A, C, G or T in uppercase or lowercase
-    for (unsigned int i = 0; i < sequence.size(); ++i){
-        if (!isalpha(sequence[i]) || 
-            (sequence[i] != 'A' && sequence[i] != 'C' && sequence[i] != 'G' && sequence[i] != 'T' && 
-            sequence[i] != 'a' && sequence[i] != 'c' && sequence[i] != 'g' && sequence[i] != 't')){
-            sequence.erase(i, 1);
-            --i;
-        }
-    }
-
+	// initialization of variables for storing information about lowercase
     int lowercaseStart = -1;
     int lowercaseLength = 0;
     int distanceFromLastLowercase = 0;
 
-    // extraction of information about lowercase characters is the same as for the to-be-compressed sequence
+    // Lowercase character information extraction from the reference sequence, the logic is the same as in the previous function
     for (unsigned int i = 0; i < sequence.size(); ++i){
+        // if the character is lowercase, it is converted to uppercase and the length of the lowercase substring is increased
         if (islower(sequence[i])){
             if (lowercaseStart == -1){
-                if (refSeqInfo.lowercaseInfo.size() > 0){
+                // if there is already a record, it is taken into account, otherwise the current index is taken
+                if (seqInfo.lowercaseInfo.size() > 0){
                     lowercaseStart = distanceFromLastLowercase;
                 } else {    
                     lowercaseStart = i;
                 }
             }
+            // convert to uppercase and increase the length
             sequence[i] = toupper(sequence[i]);
             ++lowercaseLength;
         } else {
+            // if it is an uppercase letter, then if there is a current lowercase substring, it is added to the vector and the counters are restarted
             if (lowercaseStart != -1){
-                refSeqInfo.lowercaseInfo.push_back({lowercaseStart, lowercaseLength});
+                seqInfo.lowercaseInfo.push_back({lowercaseStart, lowercaseLength});
                 lowercaseStart = -1;
                 lowercaseLength = 0;
                 distanceFromLastLowercase = 0;
             }
+            // if there is no current substring, the counter is increased
             distanceFromLastLowercase++;
         }
+       
     }
+
     if (lowercaseStart != -1){
-        refSeqInfo.lowercaseInfo.push_back({lowercaseStart, lowercaseLength});
+        seqInfo.lowercaseInfo.push_back({lowercaseStart, lowercaseLength});
     }
-    refSeqInfo.sequence = sequence; 
+    
+    seqInfo.sequence = sequence; 
+
+    // removing all N characters from the sequence and special characters
+    for (unsigned int i = 0; i < seqInfo.sequence.size(); ++i){
+        if (seqInfo.sequence[i] == 'N' || seqInfo.sequence[i] == 'X' || seqInfo.sequence[i] == 'x' || seqInfo.sequence[i] == '-'){
+            seqInfo.sequence.erase(i, 1);
+            --i;
+        }
+    } 
 }
 
 //3.2. Sequence Information Matching
@@ -251,7 +261,7 @@ inline void createKMerHashTable(string& refSeqB){
         // adding the value of the current character, going backwards because the first character is the last one in the k-mer, we want the character at the position kMerLength - 1 to have the most weight in the hash
 		value += charToNum(refSeqB[kMerLength - 1 - j]);
 	}
-    cout << "Value: " << value << " of the first k-mer: " << refSeqB.substr(0, kMerLength) << endl;
+    /*cout << "Value: " << value << " of the first k-mer: " << refSeqB.substr(0, kMerLength) << endl;*/
     // as the paper states: "L[i] = H[valuei], H[valuei] = i.", "If the hash value of the i-th k-mer is expressed as valuei, at the stage of hash table creating, i will be stored in the valuei-th element of the array H, and the original value of the valuei-th element in the array H will be stored into the array L."
 	L[0] = H[value];
 	H[value] = 0;
@@ -269,7 +279,7 @@ inline void createKMerHashTable(string& refSeqB){
         // again, as stated in the paper, "L[i] = H[valuei], H[valuei] = i."
         L[i] = H[value];
         H[value] = i;
-        cout << "Value: " << value << " of the k-mer: " << refSeqB.substr(i, kMerLength) << endl;
+        /*cout << "Value: " << value << " of the k-mer: " << refSeqB.substr(i, kMerLength) << endl;*/
     }
 }
 
@@ -330,6 +340,7 @@ inline void firstLevelMatching(string &rSeq, string &tSeq, vector<MatchedInfo> &
             // record the matched string to the matched information
             if (length_max != -1){
                 MatchedInfo matchedSegment = {
+                    // do we want to record the position of the mismatched character or the position of the matched segment?
                     position = position_max - previos_position,
                     length = length_max /*- minimumReplaceLength*/,
                 };
@@ -344,6 +355,7 @@ inline void firstLevelMatching(string &rSeq, string &tSeq, vector<MatchedInfo> &
                 }
                 continue;
             }
+            // the original algorithm uses int codes for storing, here we're storing the actual characters, do we want to change that?
         }
         
     }
@@ -359,14 +371,99 @@ inline void firstLevelMatching(string &rSeq, string &tSeq, vector<MatchedInfo> &
         matchedSegment.mismatched = mismatchedInfo;
         matchedInfo.push_back(matchedSegment);
     }
-    
-
     cout << "First level matching finished" << endl;
     for (int i = 0; i < matchedInfo.size(); i++){
         cout << matchedInfo[i].position << " " << matchedInfo[i].length << " " << matchedInfo[i].mismatched << endl;
     }
+}
 
+/*3.2.3. Lowercase Character Information Matching.*/
+// Function for matching lowercase characters, the function is written according to the pseudocode from the paper
+// Ivan Terzic
+inline void matchLowercaseCharacters(ReferenceSequenceInfo &refSeqInfo, SequenceInfo &seqInfo){
 
+    cout << "Lowercase info reference sequence: " << endl;
+    for (int i = 0; i < refSeqInfo.lowercaseInfo.size(); i++){
+        cout << refSeqInfo.lowercaseInfo[i].startFromLastElement << " " << refSeqInfo.lowercaseInfo[i].length << endl;
+    }
+    cout << "Lowercase info sequence: " << endl;
+    for (int i = 0; i < seqInfo.lowercaseInfo.size(); i++){
+        cout << seqInfo.lowercaseInfo[i].startFromLastElement << " " << seqInfo.lowercaseInfo[i].length << endl;
+    }
+
+    int lengthLowercase_t = seqInfo.lowercaseInfo.size(), lengthLowecase_r = refSeqInfo.lowercaseInfo.size();
+    // initialize matched lowercase information
+    vector<int> matchedLowercase = vector<int>(lengthLowercase_t);
+    // -1 means that the lowercase character object is not matched, in the original algorithm, the matchedLowercase array is initialized with 0
+    for (int i = 0; i < lengthLowercase_t; i++){
+        matchedLowercase[i] = 0;
+    }
+    vector<substringInfo> mismatchedLowercase;
+    
+    // u pseudokodu i kodu se sve pomiče za 1 i inicijalnizirano je s 0, u tom se slucaju ne pronalazi za zadnji element, ako zakomentiras pomak za 1, pronalazi se za zadnji element ako postoji, trenutna implementacija radi isto kao njihov kod, ne znam koju odluku za to donijeti?
+    vector<substringInfo> modifiedRefSeqLowercase = refSeqInfo.lowercaseInfo;
+    modifiedRefSeqLowercase.insert(modifiedRefSeqLowercase.begin(), {0, 0});
+
+    // start position of matching, index = 0
+    int start_position = 1, i = 0, index = 0;
+    // for i = 0 to l_t − 1 do
+    cout << "start " << endl;
+    for (i = 0; i < lengthLowercase_t; ++i){
+        cout << "i: " << i << endl;
+        // for j = start_position to l_r do
+        for (int j = start_position; j < lengthLowecase_r; ++j){
+            // if t_lowercase[i] = r_lowercase[j] then
+            if (seqInfo.lowercaseInfo[i].startFromLastElement == modifiedRefSeqLowercase[j].startFromLastElement && seqInfo.lowercaseInfo[i].length == modifiedRefSeqLowercase[j].length){
+                cout << "       Matched" << endl;
+                // matched lowercase[i] = j, update start_position = j + 1
+                matchedLowercase[i] = j;
+                start_position = j + 1;
+                break;
+            }
+            // end if
+        }
+        // end for
+        cout << "pass" << endl;
+        // if matched_lowercase[i] = 0 then
+        if (matchedLowercase[i] == 0){
+            // for j = start_position − 1 to 1 do
+            for (int j = start_position - 1; j > 0; --j){
+                // if t_lowercase[i] = r_lowercase[j] then
+                if (seqInfo.lowercaseInfo[i].startFromLastElement == modifiedRefSeqLowercase[j].startFromLastElement && seqInfo.lowercaseInfo[i].length == modifiedRefSeqLowercase[j].length){
+                    cout << "           Matched" << endl;
+                    // matched_lowercase[i] = j;
+                    matchedLowercase[i] = j;
+                    // update start position = j + 1;
+                    start_position = j + 1;
+                    break;
+                }
+                // end if
+            }
+            // end for
+        }
+        // end if
+        // if matched_lowercase[i] = 0 then
+        if (matchedLowercase[i] == 0){
+            // mismatched_lowercase[index] = t_lowercase[i];
+            mismatchedLowercase.push_back({
+                seqInfo.lowercaseInfo[i].startFromLastElement,
+                seqInfo.lowercaseInfo[i].length
+            });
+            // update index = index + 1;
+            
+        }
+
+    }
+    cout << "end" << endl;
+    cout << "Lowercase matching done, printing mismatched lowercase information" << endl;
+    for (int i = 0; i < mismatchedLowercase.size(); i++){
+        cout << mismatchedLowercase[i].startFromLastElement << " " << mismatchedLowercase[i].length << endl;
+    }
+    cout << "Printing matched lowercase information" << endl;
+    for (int i = 0; i < matchedLowercase.size(); i++){
+        cout << matchedLowercase[i] << endl;
+    }
+    cout << "--------------------------------" << endl;
 }
     
 
@@ -379,16 +476,15 @@ inline void compress(){
     ReferenceSequenceInfo refSeqInfo = ReferenceSequenceInfo();
     SequenceInfo seqInfo = SequenceInfo();
 
-    extractReferenceSequenceInfo("../test_data/R1.fa", refSeqInfo);
-    extractSequenceInfo("../test_data/T1.fa", seqInfo);
-
-    cout << "Extracted reference sequence info: " << refSeqInfo.identifier << " " << refSeqInfo.sequence << endl;
-    cout << "Extracted sequence info: " << seqInfo.identifier << " " << seqInfo.sequence << endl;
+    extractReferenceSequenceInfo("../test_data/X_chr1.fa", refSeqInfo);
+    extractSequenceInfo("../test_data/Y_chr1.fa", seqInfo);
 
     L.resize(refSeqInfo.sequence.size() - kMerLength + 1);
 
     vector<MatchedInfo> matchedInfo;
     firstLevelMatching(refSeqInfo.sequence, seqInfo.sequence, matchedInfo);
+
+    matchLowercaseCharacters(refSeqInfo, seqInfo);
 
     
 }
