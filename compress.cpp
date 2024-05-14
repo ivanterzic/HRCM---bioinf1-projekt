@@ -476,8 +476,21 @@ inline void compress(){
     ReferenceSequenceInfo refSeqInfo = ReferenceSequenceInfo();
     SequenceInfo seqInfo = SequenceInfo();
 
-    extractReferenceSequenceInfo("../test_data/X_chr1.fa", refSeqInfo);
-    extractSequenceInfo("../test_data/Y_chr1.fa", seqInfo);
+    string refFile = "../test_data/X_chr1.fa";
+    string seqFile = "../test_data/Y_chr1.fa";
+
+    //check if files exist, if not print an error message
+    ifstream fileCheck();
+    for (string file : {refFile, seqFile}){
+        ifstream fileCheck(file);
+        if (!fileCheck){
+            cout << "File " << file << " does not exist." << endl;
+            return;
+        }
+    }
+
+    extractReferenceSequenceInfo(refFile, refSeqInfo);
+    extractSequenceInfo(seqFile, seqInfo);
 
     L.resize(refSeqInfo.sequence.size() - kMerLength + 1);
 
