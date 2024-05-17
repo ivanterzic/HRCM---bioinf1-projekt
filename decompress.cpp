@@ -27,6 +27,13 @@ struct SequenceInfo {
     int lineWidth;
 };
 
+// struct for matched information
+struct MatchedInfo {
+    int position;
+    int length;
+    string mismatched;
+};
+
 // reconstructing original sequence from sequence information
 // 3.1 Sequence information extraction for to-be-decompressed sequence
 // Ivan Terzic
@@ -98,11 +105,40 @@ void originalSequenceFromSequenceInfo(string outputFileName, SequenceInfo& seqIn
         outputFile << seqInfo.sequence.substr(i, seqInfo.lineWidth);
     }
 }
-void decompress(){
-        // The sequence information is extracted from the compressed file.
-        string compressedFileName;
-        
 
-        return;
+inline void reverseFirstLevelMatching(string &rSeq, vector<MatchedInfo> &matchedInfo, string &originalSequence){
+    //absolute indexes are used to insert the matched information into the original sequence
+    for (auto &info : matchedInfo){
+        //insert the mismatched characters from the last match
+        originalSequence += info.mismatched;
+        //insert the matched characters from the reference sequence
+        originalSequence += rSeq.substr(info.position, info.length);
+    }
+}
+
+void decompress(){
+    // The sequence information is extracted from the compressed file.
+    string compressedFileName;
+    
+    /*test for X_chr1.fa and Y_chr1.fa, matched info is 
+        0 19
+        17 11 T
+        32 9 T
+    */
+
+    MatchedInfo m1 = {0, 19, ""};
+    MatchedInfo m2 = {17, 11, "T"};
+    MatchedInfo m3 = {32, 9, "T"};
+    vector<MatchedInfo> matchedInfo = {m1, m2, m3};
+    string originalSequence = "";
+    string rSeq = "AGCTGGGCCCTTAAGGTTTCCCGGGAAAAAATTTCCCTTTG";
+    string tSeq = "AGCTGGGCCCTTAAGGTTTTTTCCCGGGAAATTTCCCTTTG";
+    reverseFirstLevelMatching(rSeq, matchedInfo, originalSequence);
+    cout << "rseq: " << rSeq << endl;
+    cout << "tseq: " << tSeq << endl;
+    cout << "dcom: " << originalSequence << endl;
+
+
+    return;
 }
 
