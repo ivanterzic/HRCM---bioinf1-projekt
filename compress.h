@@ -7,4 +7,4 @@ using namespace std;
 vector<int> H(hashTableLen);
 vector<int> L;
 
-inline void compress();
+inline void compress(bool tar, int percent, string refFile, string toBeCom);

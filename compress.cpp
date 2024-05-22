@@ -466,13 +466,15 @@ inline void matchLowercaseCharacters(ReferenceSequenceInfo &refSeqInfo, Sequence
     cout << "--------------------------------" << endl;
 }
 
-inline void compress(){
-    
-    using namespace std;
+inline void compress(bool tar, int percent, string refFile, string toBeCom){
+    cout << "Started compression\n";
+    cout << tar << "\n";
+    cout << percent << "\n";
+    cout << refFile << "\n";
+    cout << toBeCom << "\n";
+    cout << "Ended compression!!\n";
 
-    cout << "Started" << endl;
-
-    ReferenceSequenceInfo refSeqInfo = ReferenceSequenceInfo();
+    /* ReferenceSequenceInfo refSeqInfo = ReferenceSequenceInfo();
     SequenceInfo seqInfo = SequenceInfo();
 
     string refFile = "../test_data/X_chr1.fa";
@@ -498,5 +500,5 @@ inline void compress(){
 
     matchLowercaseCharacters(refSeqInfo, seqInfo);
 
-    
+     */
 }
