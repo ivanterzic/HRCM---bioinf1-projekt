@@ -342,8 +342,7 @@ inline void firstLevelMatching(string &rSeq, string &tSeq, vector<MatchedInfo> &
             // record the matched string to the matched information
             if (length_max != -1){
                 MatchedInfo matchedSegment = {
-//VAZNO             // do we want to use absolute positions or relative positions? performance-wise, absolute positions are better, but relative positions are easier to implement?
-                    position = position_max /*- previos_position*/,
+                    position = position_max - previos_position,
                     length = length_max /*- minimumReplaceLength*/,
                 };
                 matchedSegment.mismatched = mismatchedInfo;                
