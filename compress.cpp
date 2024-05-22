@@ -356,7 +356,6 @@ inline void firstLevelMatching(string &rSeq, string &tSeq, vector<MatchedInfo> &
                 }
                 continue;
             }
-            // the original algorithm uses int codes for storing, here we're storing the actual characters, do we want to change that?
         }
         
     }
