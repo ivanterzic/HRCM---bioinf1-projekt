@@ -466,9 +466,6 @@ inline void matchLowercaseCharacters(ReferenceSequenceInfo &refSeqInfo, Sequence
     cout << "--------------------------------" << endl;
 }
 
-
-    
-
 inline void compress(){
     
     using namespace std;
