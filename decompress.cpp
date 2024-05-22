@@ -27,6 +27,13 @@ struct SequenceInfo {
     int lineWidth;
 };
 
+//Struct for representing information about the matched segment after first-level matching
+struct MatchedInfo {
+    int position;
+    int length;
+    string mismatched;
+};
+
 // reconstructing original sequence from sequence information
 // 3.1 Sequence information extraction for to-be-decompressed sequence
 // Ivan Terzic
@@ -98,11 +105,43 @@ void originalSequenceFromSequenceInfo(string outputFileName, SequenceInfo& seqIn
         outputFile << seqInfo.sequence.substr(i, seqInfo.lineWidth);
     }
 }
+
+// Function restoring original base string from first level matching
+// Ivan Terzic
+inline void reverseFirstLevelMatching(string &rSeq, vector<MatchedInfo> &matchedInfo, string &originalSequence){
+    //relative indexes are used to insert the mismatched characters from the last match
+    int relativeIndex = 0;
+    //for each matched segment
+    for (auto &info : matchedInfo){
+        originalSequence += info.mismatched;
+        relativeIndex += info.position;
+        originalSequence += rSeq.substr(relativeIndex, info.length);
+        relativeIndex += info.length;
+    }
+}
+
 void decompress(){
         // The sequence information is extracted from the compressed file.
         string compressedFileName;
-        
+        /*Matched info for test :
+        0 19 
+        -2 11 T
+        4 9 T*/
+        string rseq = "AGCTGGGCCCTTAAGGTTTCCCGGGAAAAAATTTCCCTTTG";
+        string tseq = "AGCTGGGCCCTTAAGGTTTTTTCCCGGGAAATTTCCCTTTG";
 
+        vector<MatchedInfo> matchedInfo;
+        MatchedInfo m1 = {0, 19, ""};
+        MatchedInfo m2 = {-2, 11, "T"};
+        MatchedInfo m3 = {4, 9, "T"};
+        matchedInfo.push_back(m1);
+        matchedInfo.push_back(m2);
+        matchedInfo.push_back(m3);
+        
+        string originalBaseString = "";
+        reverseFirstLevelMatching(rseq, matchedInfo, originalBaseString);
+        cout << originalBaseString << endl;
+        cout << tseq << endl;
         return;
 }
 
