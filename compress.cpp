@@ -61,18 +61,15 @@ inline void extractSequenceInfo(string filename, SequenceInfo& seqInfo){
     string line, sequence = "";
     int lineCount = 0;
     while (getline(file, line)){
-        // if the line starts with , it is a comment line and should be skipped
+        // skip the comment lines
         if (line[0] == ','){
             continue;
         }
-        //if line starts with '>' it is the identifier, otherwise it is the sequence
-        if (lineCount == 0 && line[0] == '>'){
-            //the first word is the identifier, the rest is the description
-            // remove the > character from the identifier
-            seqInfo.identifier = line.substr(1, line.find(' '));
+        if (lineCount == 0){
+            seqInfo.identifier = line;
         } else {
             if (lineCount == 1){
-                //seqInfo.lineWidth = line.size();
+                seqInfo.lineWidth = line.size();
             }
             sequence += line;
         }
@@ -169,21 +166,18 @@ inline void extractSequenceInfo(string filename, SequenceInfo& seqInfo){
 // 3.1 Sequence information extraction for the reference sequence
 // Ivan Terzic
 inline void extractReferenceSequenceInfo(string filename, ReferenceSequenceInfo& seqInfo){
-
+    
     // file opening and reading
     ifstream file(filename);
     string line, sequence = "";
     int lineCount = 0;
     while (getline(file, line)){
-        // if the line starts with , it is a comment line and should be skipped
+        // skip the comment lines
         if (line[0] == ','){
             continue;
         }
-        //if line starts with '>' it is the identifier, otherwise it is the sequence
-        if (lineCount == 0 && line[0] == '>'){
-            //the first word is the identifier, the rest is the description
-            // remove the > character from the identifier
-            seqInfo.identifier = line.substr(1, line.find(' '));
+        if (lineCount == 0){
+            seqInfo.identifier = line;
         } else {
             if (lineCount == 1){
                 //seqInfo.lineWidth = line.size();
