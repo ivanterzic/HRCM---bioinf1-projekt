@@ -6,8 +6,13 @@
 #include <unistd.h> // for getopt
 #include <iostream>
 #include <string>
+#include <vector>
 
 #include "compress.h"
+
+void readFile(vector<char*> seqs, char* filename){
+    
+}
 
 void show_usage(){
 	std::cout << "Usage: hrcm -m {compress | decompress} -r <ref-file-path> { [-f] <file-path> [-p] [percent] | [-t] <tar-file-path> }\n";
@@ -24,6 +29,8 @@ int main(int argc, char *argv[]) {
     bool f_value = false, t_value = false, r_value = false, p_value = false, m_value = false, tar=false;
     int percent = 10;
     std::string mode, ref, toBe;
+
+    vector<char*> seq;
 
     struct timeval start, end;
     gettimeofday(&start, nullptr);
