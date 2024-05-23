@@ -52,8 +52,6 @@ const int hashTableLen =  pow(2, 2 * kMerLength);
 extern vector<int> H;
 extern vector<int> L;
 
-
-
 // Function for extracting information from the sequence file
 // 3.1 Sequence information extraction for the to-be-compressed sequence
 // Ivan Terzic
@@ -63,11 +61,18 @@ inline void extractSequenceInfo(string filename, SequenceInfo& seqInfo){
     string line, sequence = "";
     int lineCount = 0;
     while (getline(file, line)){
-        if (lineCount == 0){
-            seqInfo.identifier = line;
+        // if the line starts with , it is a comment line and should be skipped
+        if (line[0] == ','){
+            continue;
+        }
+        //if line starts with '>' it is the identifier, otherwise it is the sequence
+        if (lineCount == 0 && line[0] == '>'){
+            //the first word is the identifier, the rest is the description
+            // remove the > character from the identifier
+            seqInfo.identifier = line.substr(1, line.find(' '));
         } else {
             if (lineCount == 1){
-                seqInfo.lineWidth = line.size();
+                //seqInfo.lineWidth = line.size();
             }
             sequence += line;
         }
@@ -170,8 +175,15 @@ inline void extractReferenceSequenceInfo(string filename, ReferenceSequenceInfo&
     string line, sequence = "";
     int lineCount = 0;
     while (getline(file, line)){
-        if (lineCount == 0){
-            seqInfo.identifier = line;
+        // if the line starts with , it is a comment line and should be skipped
+        if (line[0] == ','){
+            continue;
+        }
+        //if line starts with '>' it is the identifier, otherwise it is the sequence
+        if (lineCount == 0 && line[0] == '>'){
+            //the first word is the identifier, the rest is the description
+            // remove the > character from the identifier
+            seqInfo.identifier = line.substr(1, line.find(' '));
         } else {
             if (lineCount == 1){
                 //seqInfo.lineWidth = line.size();
