@@ -1,5 +1,6 @@
 
 #include <string>
+#include <vector>
 #include "compress.cpp"
 
 using namespace std;
@@ -7,4 +8,4 @@ using namespace std;
 vector<int> H(hashTableLen);
 vector<int> L;
 
-inline void compress(bool tar, int percent, string refFile, string toBeCom);
+inline void compress(vector<string> seqNames, int percent, string name);

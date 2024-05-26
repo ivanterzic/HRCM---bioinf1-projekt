@@ -1,0 +1,3 @@
+test_data/T1.fa
+test_data/X_chr1.fa
+test_data/Y_chr1.fa

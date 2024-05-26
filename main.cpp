@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include <unistd.h>
 //#include <windows.h>
 #include <sys/time.h>
@@ -7,11 +8,23 @@
 #include <iostream>
 #include <string>
 #include <vector>
-
 #include "compress.h"
 
-void readFile(vector<char*> seqs, char* filename){
-    
+void readFile(vector<string>& seqNames, const string& filename){
+    ifstream file(filename);
+    string line;
+    if (!file.is_open()) {
+        cerr << "Error: Could not open the file " << filename << endl;
+        return;
+    }
+
+    while (getline(file, line)){
+        if(!line.empty()){
+            seqNames.push_back(line);
+        }
+    }
+    file.close();
+    cout << "Ended hier!!!\n";
 }
 
 void show_usage(){
@@ -26,11 +39,11 @@ void show_usage(){
 int main(int argc, char *argv[]) {
     int oc; // option character
 
-    bool f_value = false, t_value = false, r_value = false, p_value = false, m_value = false, tar=false;
+    bool f_value = false, t_value = false, r_value = false, p_value = false, m_value = false;
     int percent = 10;
-    std::string mode, ref, toBe;
+    string mode, ref, toBe;
 
-    vector<char*> seq;
+    vector<string> seqNames;
 
     struct timeval start, end;
     gettimeofday(&start, nullptr);
@@ -50,17 +63,15 @@ int main(int argc, char *argv[]) {
                 break;
             case 'r':
                 r_value = true;
-                ref = optarg;
+                seqNames.push_back(optarg);
                 break;
             case 'f':
                 f_value = true;
                 toBe = optarg;
-                tar=false;
                 break;
             case 't':
                 t_value = true;
                 toBe = optarg;
-                tar=true;
                 break;
             case 'p':
                 percent = std::stoi(optarg);
@@ -82,9 +93,15 @@ int main(int argc, char *argv[]) {
         show_usage();
         return 0;
     }
+    if(t_value){
+        seqNames.push_back(toBe);
+    } else if (f_value){
+        cout << "Was hier\n";
+        readFile(seqNames, toBe);
+    }
 
     if(mode == "compress"){
-        compress(tar, percent, ref, toBe);
+        compress(seqNames, percent, toBe);
 
     } else if(mode == "decompress"){
 
