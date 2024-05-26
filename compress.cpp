@@ -400,13 +400,12 @@ inline void matchLowercaseCharacters(ReferenceSequenceInfo &refSeqInfo, Sequence
     int lengthLowercase_t = seqInfo.lowercaseInfo.size(), lengthLowecase_r = refSeqInfo.lowercaseInfo.size();
     // initialize matched lowercase information
     vector<int> matchedLowercase = vector<int>(lengthLowercase_t);
-    // -1 means that the lowercase character object is not matched, in the original algorithm, the matchedLowercase array is initialized with 0
+    // 0 means that the lowercase character object is not matched, the indexes will be shifted by 1
     for (int i = 0; i < lengthLowercase_t; i++){
         matchedLowercase[i] = 0;
     }
     vector<substringInfo> mismatchedLowercase;
-    
-    // u pseudokodu i kodu se sve pomiče za 1 i inicijalnizirano je s 0, u tom se slucaju ne pronalazi za zadnji element, ako zakomentiras pomak za 1, pronalazi se za zadnji element ako postoji, trenutna implementacija radi isto kao njihov kod, ne znam koju odluku za to donijeti?
+    // add the first element to the reference sequence lowercase information, to shift the indexes by 1
     vector<substringInfo> modifiedRefSeqLowercase = refSeqInfo.lowercaseInfo;
     modifiedRefSeqLowercase.insert(modifiedRefSeqLowercase.begin(), {0, 0});
 
