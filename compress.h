@@ -10,4 +10,6 @@ vector<int> L;
 string ref_seq;
 vector<string> seq_names(1);
 
+vector<vector<MatchedInfo>> fst_lvl_res;
+
 inline void compress();

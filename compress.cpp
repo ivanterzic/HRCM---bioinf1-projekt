@@ -51,13 +51,13 @@ const int hashTableLen =  pow(2, 2 * kMerLength);
 // the hash tables for the reference sequence, H and L, H is the hash table, L is the list
 extern vector<int> H;
 extern vector<int> L;
+
 extern vector<string> seq_names;
 extern string ref_seq;
 
-vector<vector<int>> H_big;
-vector<vector<int>> L_big;
-
-vector<vector<MatchedInfo>> fst_lvl_res;
+extern vector<vector<int>> H_sec;
+extern vector<vector<int>> L_sec;
+extern vector<vector<MatchedInfo>> fst_lvl_res;
 
 // Function for extracting information from the sequence file
 // 3.1 Sequence information extraction for the to-be-compressed sequence
@@ -390,13 +390,15 @@ inline void firstLevelMatching(string &rSeq, string &tSeq, vector<MatchedInfo> &
 }
 
 inline void save_matched_info(ofstream& of, MatchedInfo& info){
-    of << info.position << " " << info.length << " " << info.mismatched << "\n";
+    of << info.position << " " << info.length << " " << info.mismatched << " ";
 }
 
 inline void save_matched_info_vector(ofstream& of, vector<MatchedInfo>& vec){
     for(MatchedInfo info : vec){
         save_matched_info(of, info);
     }
+
+    of  << "\n";
 }
 
 /*3.2.3. Lowercase Character Information Matching.*/
@@ -499,6 +501,7 @@ inline void compress(){
 
     ReferenceSequenceInfo refSeqInfo = ReferenceSequenceInfo();
     SequenceInfo seqInfo = SequenceInfo();
+    fst_lvl_res = vector<vector<MatchedInfo>>(seq_names.size());
 
     //check if files exist, if not print an error message
     //ifstream fileCheck();
@@ -526,12 +529,14 @@ inline void compress(){
         firstLevelMatching(refSeqInfo.sequence, seqInfo.sequence, matchedInfo);
         matchLowercaseCharacters(refSeqInfo, seqInfo);
 
-        fst_lvl_res.push_back(matchedInfo);
+        fst_lvl_res[i] = matchedInfo;
 
         if(i == 0){
             save_matched_info_vector(file, matchedInfo);
         }
+        save_matched_info_vector(file, matchedInfo);
     }
 
     file.close();
+    fst_lvl_res.clear();
 }
