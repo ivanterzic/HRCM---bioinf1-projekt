@@ -54,6 +54,11 @@ extern vector<int> L;
 extern vector<string> seq_names;
 extern string ref_seq;
 
+vector<vector<int>> H_big;
+vector<vector<int>> L_big;
+
+vector<vector<MatchedInfo>> fst_lvl_res;
+
 // Function for extracting information from the sequence file
 // 3.1 Sequence information extraction for the to-be-compressed sequence
 // Ivan Terzic
@@ -303,6 +308,7 @@ inline void firstLevelMatching(string &rSeq, string &tSeq, vector<MatchedInfo> &
     int i, k, position, length;
     int previos_position = 0;
     //const int minimumReplaceLength = 0;
+    createKMerHashTable(rSeq);
     // initalization of the mismatchedInfo string
     string mismatchedInfo = "";
     // for i = 0 to n_t - k
@@ -479,6 +485,10 @@ inline void matchLowercaseCharacters(ReferenceSequenceInfo &refSeqInfo, Sequence
     }
     cout << "--------------------------------" << endl;*/
 }
+
+inline void second_level_matching(){
+
+}
     
 
 inline void compress(){
@@ -489,10 +499,6 @@ inline void compress(){
 
     ReferenceSequenceInfo refSeqInfo = ReferenceSequenceInfo();
     SequenceInfo seqInfo = SequenceInfo();
-    vector<MatchedInfo> matchedInfo;
-
-    string refFile = "../test_data/X_chr1.fa";
-    string seqFile = "../test_data/Y_chr1.fa";
 
     //check if files exist, if not print an error message
     //ifstream fileCheck();
@@ -506,8 +512,7 @@ inline void compress(){
      */
     extractReferenceSequenceInfo(ref_seq, refSeqInfo);
     L.resize(refSeqInfo.sequence.size() - kMerLength + 1);
-    createKMerHashTable(ref_seq);
-
+    
     ofstream file("_stored_.hrcm");
 
     if(!file.is_open()){
@@ -515,12 +520,17 @@ inline void compress(){
         exit(1);
     }
 
-    for(string seq : seq_names){
-        extractSequenceInfo(seq, seqInfo);
+    for(int i = 0; i < seq_names.size(); i++){
+        vector<MatchedInfo> matchedInfo;
+        extractSequenceInfo(seq_names[i], seqInfo);
         firstLevelMatching(refSeqInfo.sequence, seqInfo.sequence, matchedInfo);
         matchLowercaseCharacters(refSeqInfo, seqInfo);
 
-        save_matched_info_vector(file, matchedInfo);
+        fst_lvl_res.push_back(matchedInfo);
+
+        if(i == 0){
+            save_matched_info_vector(file, matchedInfo);
+        }
     }
 
     file.close();

@@ -1,0 +1,5 @@
+test_data/T1.fa
+test_data/T2.fa
+test_data/T3.fa
+test_data/T4.fa
+test_data/T5.fa
