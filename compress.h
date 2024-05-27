@@ -7,4 +7,7 @@ using namespace std;
 vector<int> H(hashTableLen);
 vector<int> L;
 
+string ref_seq;
+vector<string> seq_names;
+
 inline void compress();

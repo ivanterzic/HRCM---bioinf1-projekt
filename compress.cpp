@@ -51,6 +51,8 @@ const int hashTableLen =  pow(2, 2 * kMerLength);
 // the hash tables for the reference sequence, H and L, H is the hash table, L is the list
 extern vector<int> H;
 extern vector<int> L;
+extern vector<string> seq_names;
+extern string ref_seq;
 
 // Function for extracting information from the sequence file
 // 3.1 Sequence information extraction for the to-be-compressed sequence
@@ -297,8 +299,6 @@ inline void firstLevelMatching(string &rSeq, string &tSeq, vector<MatchedInfo> &
     int tSeqLength = tSeq.size(), rSeqLength = rSeq.size();
     // initialite l_max = k, pos_max = 0
     int length_max = kMerLength, position_max = 0;
-    // create the hash table for the reference sequence
-    createKMerHashTable(rSeq);
     // loop variables and l and pos variables
     int i, k, position, length;
     int previos_position = 0;
@@ -380,6 +380,16 @@ inline void firstLevelMatching(string &rSeq, string &tSeq, vector<MatchedInfo> &
     cout << "First level matching finished" << endl;
     for (int i = 0; i < matchedInfo.size(); i++){
         cout << matchedInfo[i].position << " " << matchedInfo[i].length << " " << matchedInfo[i].mismatched << endl;
+    }
+}
+
+inline void save_matched_info(ofstream& of, MatchedInfo& info){
+    of << info.position << " " << info.length << " " << info.mismatched << "\n";
+}
+
+inline void save_matched_info_vector(ofstream& of, vector<MatchedInfo>& vec){
+    for(MatchedInfo info : vec){
+        save_matched_info(of, info);
     }
 }
 
@@ -479,29 +489,39 @@ inline void compress(){
 
     ReferenceSequenceInfo refSeqInfo = ReferenceSequenceInfo();
     SequenceInfo seqInfo = SequenceInfo();
+    vector<MatchedInfo> matchedInfo;
 
     string refFile = "../test_data/X_chr1.fa";
     string seqFile = "../test_data/Y_chr1.fa";
 
     //check if files exist, if not print an error message
-    ifstream fileCheck();
-    for (string file : {refFile, seqFile}){
+    //ifstream fileCheck();
+    /* for (string file : {refFile, seqFile}){
         ifstream fileCheck(file);
         if (!fileCheck){
             cout << "File " << file << " does not exist." << endl;
             return;
         }
+    }  
+     */
+    extractReferenceSequenceInfo(ref_seq, refSeqInfo);
+    L.resize(refSeqInfo.sequence.size() - kMerLength + 1);
+    createKMerHashTable(ref_seq);
+
+    ofstream file("_stored_.hrcm");
+
+    if(!file.is_open()){
+        cerr << "ERROR: An error has occured ...";
+        exit(1);
     }
 
-    extractReferenceSequenceInfo(refFile, refSeqInfo);
-    extractSequenceInfo(seqFile, seqInfo);
+    for(string seq : seq_names){
+        extractSequenceInfo(seq, seqInfo);
+        firstLevelMatching(refSeqInfo.sequence, seqInfo.sequence, matchedInfo);
+        matchLowercaseCharacters(refSeqInfo, seqInfo);
 
-    L.resize(refSeqInfo.sequence.size() - kMerLength + 1);
+        save_matched_info_vector(file, matchedInfo);
+    }
 
-    vector<MatchedInfo> matchedInfo;
-    firstLevelMatching(refSeqInfo.sequence, seqInfo.sequence, matchedInfo);
-
-    matchLowercaseCharacters(refSeqInfo, seqInfo);
-
-    
+    file.close();
 }
