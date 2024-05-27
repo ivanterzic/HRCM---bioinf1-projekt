@@ -52,6 +52,7 @@ const int hashTableLen =  pow(2, 2 * kMerLength);
 extern vector<int> H;
 extern vector<int> L;
 
+extern int sec_ref_seq_num;
 extern vector<string> seq_names;
 extern string ref_seq;
 
@@ -488,20 +489,36 @@ inline void matchLowercaseCharacters(ReferenceSequenceInfo &refSeqInfo, Sequence
     cout << "--------------------------------" << endl;*/
 }
 
-inline void second_level_matching(){
+inline int get_next_prime(int num){
+    
+}
+
+inline void create_hash_for_ref(vector<MatchedInfo> matched_info){
+
+}
+
+inline void second_level_matching(ofstream& of, vector<MatchedInfo> matched_info){
 
 }
     
+inline void initilize(){
+    fst_lvl_res = vector<vector<MatchedInfo>>(seq_names.size());
+    H_sec = vector<vector<int>>(sec_ref_seq_num);
+    L_sec = vector<vector<int>>(sec_ref_seq_num);
+}
+
+inline void clear(){
+    fst_lvl_res.clear();
+    H_sec.clear();
+    L_sec.clear();
+}
 
 inline void compress(){
-    
-    using namespace std;
-
+    initilize();
     cout << "Started" << endl;
 
     ReferenceSequenceInfo refSeqInfo = ReferenceSequenceInfo();
     SequenceInfo seqInfo = SequenceInfo();
-    fst_lvl_res = vector<vector<MatchedInfo>>(seq_names.size());
 
     //check if files exist, if not print an error message
     //ifstream fileCheck();
@@ -533,10 +550,12 @@ inline void compress(){
 
         if(i == 0){
             save_matched_info_vector(file, matchedInfo);
+
+        } else {
+            save_matched_info_vector(file, matchedInfo);
         }
-        save_matched_info_vector(file, matchedInfo);
     }
 
     file.close();
-    fst_lvl_res.clear();
+    clear();
 }

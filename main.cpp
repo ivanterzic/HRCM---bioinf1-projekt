@@ -8,6 +8,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <cmath>
 #include "compress.h"
 
 using namespace std;
@@ -82,6 +83,8 @@ int main(int argc, char *argv[]) {
                 return 0;
         }
     }
+
+    sec_ref_sec_num = ceil(percent * seq_names.size() / 100);
 
     if (!m_value || !r_value){
         std::cout << "Missing method or referance parameter!\n";
