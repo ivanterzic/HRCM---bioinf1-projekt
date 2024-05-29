@@ -48,17 +48,21 @@ struct MatchedInfo {
 const int kMerLength = 2; 
 // the length of the hash table, H in the paper, 2^(2*kMerLength) because there are 4 possible values for each character so 4^kMerLength possible k-mers since 2 bits are enough to represent 4 values
 const int hashTableLen =  pow(2, 2 * kMerLength);  
+static int hash_table_size;
+const int vec_size = 1 << 20;
+
 // the hash tables for the reference sequence, H and L, H is the hash table, L is the list
 extern vector<int> H;
 extern vector<int> L;
 
-extern int sec_ref_seq_num;
+static int sec_ref_seq_num;
 extern vector<string> seq_names;
 extern string ref_seq;
 
 extern vector<vector<int>> H_sec;
 extern vector<vector<int>> L_sec;
 extern vector<vector<MatchedInfo>> fst_lvl_res;
+    
 
 // Function for extracting information from the sequence file
 // 3.1 Sequence information extraction for the to-be-compressed sequence
@@ -300,8 +304,8 @@ inline void createKMerHashTable(string& refSeqB){
 // First level matching function - this function performs the longest matching process, the pseudocode is taken from the paper and will be followed in this implementation
 // Ivan Terzic
 inline void firstLevelMatching(string &rSeq, string &tSeq, vector<MatchedInfo> &matchedInfo){
-    cout << "rseq: " << rSeq << endl;
-    cout << "tseq: " << tSeq << endl;
+    //cout << "rseq: " << rSeq << endl;
+    //cout << "tseq: " << tSeq << endl;
     int tSeqLength = tSeq.size(), rSeqLength = rSeq.size();
     // initialite l_max = k, pos_max = 0
     int length_max = kMerLength, position_max = 0;
@@ -384,10 +388,10 @@ inline void firstLevelMatching(string &rSeq, string &tSeq, vector<MatchedInfo> &
         matchedSegment.mismatched = mismatchedInfo;
         matchedInfo.push_back(matchedSegment);
     }
-    cout << "First level matching finished" << endl;
-    for (int i = 0; i < matchedInfo.size(); i++){
-        cout << matchedInfo[i].position << " " << matchedInfo[i].length << " " << matchedInfo[i].mismatched << endl;
-    }
+    //cout << "First level matching finished" << endl;
+    //for (int i = 0; i < matchedInfo.size(); i++){
+    //    cout << matchedInfo[i].position << " " << matchedInfo[i].length << " " << matchedInfo[i].mismatched << endl;
+    //}
 }
 
 inline void save_matched_info(ofstream& of, MatchedInfo& info){
@@ -489,16 +493,123 @@ inline void matchLowercaseCharacters(ReferenceSequenceInfo &refSeqInfo, Sequence
     cout << "--------------------------------" << endl;*/
 }
 
-inline int get_next_prime(int num){
+inline int get_closest_prime_value(int number){
+    int num = number+1;
+    bool prime = false;
+    int i = 0;
+
+    while(!prime){
+        prime = true;
+
+        for(i = 5; i * i <= num; i += 6){
+            if (num % i == 0){
+                prime = false;
+                break;
+            }
+        }
+
+        if(num % 2 == 0 || num % 3 == 0){
+            prime = false;
+        }
+
+        num++;
+    }
+
+    return num;
+}
+
+inline int get_hash_value(MatchedInfo& info){
+    int result = 0;
+    for(int i = 0; i < info.mismatched.size(); i++){
+        result += info.mismatched[i] * 92083;
+    }
+    result += info.position * 69061 + info.length * 51787;
+    return result % hash_table_size;
+}
+
+inline void print_matched_entity(MatchedInfo info){
+    cout << info.length << " " << info.mismatched << " " << info.position << " ";
+}
+
+inline void create_hash_for_ref(vector<MatchedInfo>& matched_info, int el) {
+    vector<int> loc_L(vec_size);
+    vector<int> loc_H(hash_table_size, -1);  // Initialize vector with -1
+
+    int hash;
     
+    //cout << matched_info.size() << endl;
+    for (int i = 0; i < matched_info.size(); i++) {
+        hash = get_hash_value(matched_info[i]);
+        loc_L[i] = loc_H[hash];
+        loc_H[hash] = i;
+        //cout << loc_H[hash] << " : " << loc_L[hash] << endl;
+    }
+
+    H_sec[el] = loc_H;
+    L_sec[el] = loc_L;
 }
 
-inline void create_hash_for_ref(vector<MatchedInfo> matched_info){
+inline bool equal_info(MatchedInfo fst, MatchedInfo sec){
+    cout << "FST: " << fst.length << ", " << fst.position << ", " << fst.mismatched << endl;
+    cout << "SEC: " << sec.length << ", " << sec.position << ", " << sec.mismatched << endl;
+        
+    if(fst.length == sec.length && fst.mismatched == sec.mismatched && fst.position == sec.position){
+        return true;
+    }
+
+    return false;
+}
+
+inline int get_length(vector<MatchedInfo>& tested, vector<MatchedInfo>& tester, unsigned int tested_index, unsigned int tester_index){
+    int length = 0;
+    int idx = tested_index, idy = tester_index;
+	while (idx < tested.size() && idy < tester.size() && equal_info(tested[idx], tester[idy])){
+        idx++;
+        idy++;
+        length++;
+    }
+
+    cout << length << endl;
+	return length;
 
 }
 
-inline void second_level_matching(ofstream& of, vector<MatchedInfo> matched_info){
+inline void second_level_matching(ofstream& of, vector<MatchedInfo> matched_info, int el){
+    int hashValue;
+    int pre_seq_id = 1, pre_pos = 0;
+    int max_pos = 0, max_length, length, seq_id, pos;
+    int delta_length, delta_seq_id, delta_pos;
+    int id;
+    unsigned int j;
 
+    for (j = 0; j < matched_info.size(); j++){
+        hashValue = get_hash_value(matched_info[j]);
+        max_length = 0;
+        for(int k = 0; k < min(el - 1, sec_ref_seq_num); k++){
+            id = H_sec[k][hashValue];
+            //cout << hashValue << endl;
+            //cout << id << endl;
+            if(id != -1){
+                for(pos = id; pos != -1; pos = L_sec[k][pos]){
+                    length = get_length(matched_info, fst_lvl_res[k], j, pos);
+                    //cout << el << " : " <<  pos << " : " << max_length << " : " << length << endl;
+                    if(length > 1 && max_length < length){
+                        max_length = length;
+                        max_pos = pos;
+                        seq_id = k;
+                    }
+                }
+            }
+        }
+
+        if(max_length){
+            of << seq_id << " " << max_pos << " " << max_length << " ";
+        } else {
+            save_matched_info(of, matched_info[j]);
+        }
+    }
+
+    of << "\n";
 }
     
 inline void initilize(){
@@ -513,10 +624,12 @@ inline void clear(){
     L_sec.clear();
 }
 
-inline void compress(){
+inline void compress(int percent){
+    sec_ref_seq_num = ceil((double)percent * (double)seq_names.size() / 100.0);
     initilize();
-    cout << "Started" << endl;
 
+    cout << "Started" << endl;
+    cout << "Number of reference sequneces for second level matching: "<< sec_ref_seq_num << endl;
     ReferenceSequenceInfo refSeqInfo = ReferenceSequenceInfo();
     SequenceInfo seqInfo = SequenceInfo();
 
@@ -540,6 +653,8 @@ inline void compress(){
         exit(1);
     }
 
+    hash_table_size = get_closest_prime_value(vec_size);
+
     for(int i = 0; i < seq_names.size(); i++){
         vector<MatchedInfo> matchedInfo;
         extractSequenceInfo(seq_names[i], seqInfo);
@@ -547,12 +662,16 @@ inline void compress(){
         matchLowercaseCharacters(refSeqInfo, seqInfo);
 
         fst_lvl_res[i] = matchedInfo;
+        //cout << "Hello from the other side: " << matchedInfo.size() << endl;
+
+        if(i < sec_ref_seq_num){
+            create_hash_for_ref(matchedInfo, i);
+        }
 
         if(i == 0){
             save_matched_info_vector(file, matchedInfo);
-
         } else {
-            save_matched_info_vector(file, matchedInfo);
+            second_level_matching(file, matchedInfo, i+1);
         }
     }
 

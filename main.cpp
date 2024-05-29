@@ -84,7 +84,6 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    sec_ref_sec_num = ceil(percent * seq_names.size() / 100);
 
     if (!m_value || !r_value){
         std::cout << "Missing method or referance parameter!\n";
@@ -104,7 +103,7 @@ int main(int argc, char *argv[]) {
     }
 
     if(mode == "compress"){
-        compress();
+        compress(percent);
 
     } else if(mode == "decompress"){
 
