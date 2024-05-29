@@ -604,12 +604,38 @@ inline void second_level_matching(ofstream& of, vector<MatchedInfo> matched_info
 
         if(max_length){
             of << seq_id << " " << max_pos << " " << max_length << " ";
+            j = j + max_length - 1;
         } else {
             save_matched_info(of, matched_info[j]);
         }
     }
 
     of << "\n";
+}
+
+inline void save_special_charachter_data(ofstream& of, SequenceInfo &seqInfo){
+
+}
+
+inline void save_identifier_data(ofstream& of, SequenceInfo& seqInfo){
+
+}
+
+inline void save_n_charachter_data(ofstream& of, SequenceInfo& seqInfo){
+
+}
+
+inline void save_lowercase_charachter_data(ofstream& of, SequenceInfo& seqInfo){
+
+}
+
+inline void save_all_other_data(ofstream& of, ReferenceSequenceInfo &refSeqInfo, SequenceInfo &seqInfo){
+    matchLowercaseCharacters(refSeqInfo, seqInfo);
+
+    for(substringInfo info : seqInfo.lowercaseInfo){
+        of << info.startFromLastElement << " " << info.length;
+    }
+    of << "\n\n";
 }
     
 inline void initilize(){
@@ -659,7 +685,8 @@ inline void compress(int percent){
         vector<MatchedInfo> matchedInfo;
         extractSequenceInfo(seq_names[i], seqInfo);
         firstLevelMatching(refSeqInfo.sequence, seqInfo.sequence, matchedInfo);
-        matchLowercaseCharacters(refSeqInfo, seqInfo);
+
+        save_all_other_data(file, refSeqInfo, seqInfo);
 
         fst_lvl_res[i] = matchedInfo;
         //cout << "Hello from the other side: " << matchedInfo.size() << endl;
