@@ -14,4 +14,7 @@ vector<vector<int>> H_sec;
 vector<vector<int>> L_sec;
 vector<vector<MatchedInfo>> fst_lvl_res;
 
+vector<substringInfo> mismatchedLowercase;
+vector<int> matchedLowercase;
+
 inline void compress(int percent);

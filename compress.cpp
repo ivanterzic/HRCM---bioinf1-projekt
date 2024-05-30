@@ -27,7 +27,6 @@ struct SequenceInfo {
     vector<substringInfo> lowercaseInfo;
     vector<substringInfo> nInfo;
     vector<SpecialCharInfo> specialCharInfo;
-    int lineWidth;
 };
 
 // Struct for representing information about the reference sequence
@@ -62,12 +61,17 @@ extern string ref_seq;
 extern vector<vector<int>> H_sec;
 extern vector<vector<int>> L_sec;
 extern vector<vector<MatchedInfo>> fst_lvl_res;
-    
+
+extern vector<substringInfo> mismatchedLowercase;
+extern vector<int> matchedLowercase;
+
+extern vector<int> line_width_vec;
+extern vector<string> identifier_vec;
 
 // Function for extracting information from the sequence file
 // 3.1 Sequence information extraction for the to-be-compressed sequence
 // Ivan Terzic
-inline void extractSequenceInfo(string filename, SequenceInfo& seqInfo){
+inline void extractSequenceInfo(string filename, SequenceInfo& seqInfo, int el){
     // file opening and reading
     ifstream file(filename);
     string line, sequence = "";
@@ -79,9 +83,10 @@ inline void extractSequenceInfo(string filename, SequenceInfo& seqInfo){
         }
         if (lineCount == 0){
             seqInfo.identifier = line;
+            identifier_vec[el] = line;
         } else {
             if (lineCount == 1){
-                seqInfo.lineWidth = line.size();
+                line_width_vec[el] = line.size();
             }
             sequence += line;
         }
@@ -427,7 +432,7 @@ inline void matchLowercaseCharacters(ReferenceSequenceInfo &refSeqInfo, Sequence
     for (int i = 0; i < lengthLowercase_t; i++){
         matchedLowercase[i] = 0;
     }
-    vector<substringInfo> mismatchedLowercase;
+
     // add the first element to the reference sequence lowercase information, to shift the indexes by 1
     vector<substringInfo> modifiedRefSeqLowercase = refSeqInfo.lowercaseInfo;
     modifiedRefSeqLowercase.insert(modifiedRefSeqLowercase.begin(), {0, 0});
@@ -613,48 +618,141 @@ inline void second_level_matching(ofstream& of, vector<MatchedInfo> matched_info
     of << "\n";
 }
 
-inline void save_special_charachter_data(ofstream& of, SequenceInfo &seqInfo){
+inline void length_encoding(ofstream& of, vector<int>& vec, int tol){
+    vector<int> code;
+    if(vec.size() > 0){
+        code.push_back(vec[0]);
+        int cnt = 1;
+        
+        for(int i = 1; i < vec.size(); i++){
+            if(vec[i] - vec[i-1] == tol){
+                cnt++;
+            } else {
+                code.push_back(cnt);
+                code.push_back(vec[i]);
+            }
+        }
 
+        code.push_back(cnt);
+    }
+    of << code.size() << " ";
+    for(int el : code){
+        of << el << " ";
+    }
 }
 
-inline void save_identifier_data(ofstream& of, SequenceInfo& seqInfo){
+inline void save_substring_info(ofstream& of, vector<substringInfo>& info){
+    of << info.size() << " ";
+    for(substringInfo sub : info){
+        of << sub.startFromLastElement << " " << sub.length << " ";
+    }
+}
 
+inline void save_special_charachter_data(ofstream& of, SequenceInfo &seqInfo){
+    int temp;
+    vector<int> flag(27, -1), arr;
+
+    for(int i = 0; i < seqInfo.specialCharInfo.size(); i++){
+        of << seqInfo.specialCharInfo[i] << " ";
+        if(seqInfo.specialCharInfo[i].character == '-') temp = 26;
+        else temp = seqInfo.specialCharInfo[i].character - 'A';
+
+        if(flag[temp]){
+            arr.push_back(temp);
+            flag[temp] = arr.size() - 1;
+        }
+    }
+
+    of << "/ " << arr.size() << " ";
+    for(int el : arr){
+        of << el << " ";
+    }
+
+    if(arr.size() != -1){
+        unsigned int bit_num = ceil(log(arr.size()) / log(2));
+        unsigned int v_num = floor(32.0 / bit_num);     //the number of characters can be represented in 4 bytes
+		for (int i = 0; i < seqInfo.specialCharInfo.size(); )
+		{
+			unsigned int v = 0;
+			for (unsigned int j = 0; j < v_num && i < seqInfo.specialCharInfo.size(); j++, i++)
+			{
+				v <<= bit_num;
+
+                if(seqInfo.specialCharInfo[i].character == '-') temp = 27;
+                else temp = seqInfo.specialCharInfo[i].character - 'A';
+
+				v += flag[temp];
+			}
+            of << v << " ";
+		}
+    }
+    of << "\n";
+}
+
+inline void save_identifier_data(ofstream& of){
+    length_encoding(of, line_width_vec, 0);
+
+    for(int i = 0; i < seq_names.size(); i++){
+        of << ">" << identifier_vec[i]<<"\n";
+    }
 }
 
 inline void save_n_charachter_data(ofstream& of, SequenceInfo& seqInfo){
-
+    if(seqInfo.nInfo.size() > 0){
+        of << "; ";
+        save_substring_info(of, seqInfo.nInfo);
+        of << "\n";
+    }
 }
 
 inline void save_lowercase_charachter_data(ofstream& of, SequenceInfo& seqInfo){
+    if(seqInfo.lowercaseInfo.size() > 0){
+        of << ": ";
+        bool flag = false;
+        if(2 * mismatchedLowercase.size() < seqInfo.lowercaseInfo.size()){
+            flag = true;
+            of << flag << " ";
+            length_encoding(of, matchedLowercase, 1);
+            of << "+ ";
+            save_substring_info(of, mismatchedLowercase);
+        }
 
+        if (!flag){
+            of << flag << " ";
+            save_substring_info(of, seqInfo.lowercaseInfo);
+        }
+        of << "\n";
+    }
 }
 
 inline void save_all_other_data(ofstream& of, ReferenceSequenceInfo &refSeqInfo, SequenceInfo &seqInfo){
     matchLowercaseCharacters(refSeqInfo, seqInfo);
-
-    for(substringInfo info : seqInfo.lowercaseInfo){
-        of << info.startFromLastElement << " " << info.length;
-    }
-    of << "\n\n";
+    save_n_charachter_data(of, seqInfo);
+    save_special_charachter_data(of, seqInfo);
+    save_lowercase_charachter_data(of, seqInfo);
 }
     
 inline void initilize(){
-    fst_lvl_res = vector<vector<MatchedInfo>>(seq_names.size());
+    fst_lvl_res = vector<vector<MatchedInfo>>(sec_ref_seq_num);
     H_sec = vector<vector<int>>(sec_ref_seq_num);
     L_sec = vector<vector<int>>(sec_ref_seq_num);
+    line_width_vec = vector<int>(seq_names.size());
+    identifier_vec = vector<string>(seq_names.size());
 }
 
 inline void clear(){
     fst_lvl_res.clear();
     H_sec.clear();
     L_sec.clear();
+    line_width_vec.clear();
+    identifier_vec.clear();
 }
 
 inline void compress(int percent){
     sec_ref_seq_num = ceil((double)percent * (double)seq_names.size() / 100.0);
     initilize();
 
-    cout << "Started" << endl;
+    cout << "Compression started!" << endl;
     cout << "Number of reference sequneces for second level matching: "<< sec_ref_seq_num << endl;
     ReferenceSequenceInfo refSeqInfo = ReferenceSequenceInfo();
     SequenceInfo seqInfo = SequenceInfo();
@@ -672,9 +770,12 @@ inline void compress(int percent){
     extractReferenceSequenceInfo(ref_seq, refSeqInfo);
     L.resize(refSeqInfo.sequence.size() - kMerLength + 1);
     
-    ofstream file("_stored_.hrcm");
+    string hrcm = "_storage_.hrcm";
+    string desc = "_identifier_.desc";
 
-    if(!file.is_open()){
+    ofstream HRCM(hrcm);
+
+    if(!HRCM.is_open()){
         cerr << "ERROR: An error has occured ...";
         exit(1);
     }
@@ -683,25 +784,37 @@ inline void compress(int percent){
 
     for(int i = 0; i < seq_names.size(); i++){
         vector<MatchedInfo> matchedInfo;
-        extractSequenceInfo(seq_names[i], seqInfo);
+        extractSequenceInfo(seq_names[i], seqInfo, i);
         firstLevelMatching(refSeqInfo.sequence, seqInfo.sequence, matchedInfo);
 
-        save_all_other_data(file, refSeqInfo, seqInfo);
+        save_all_other_data(HRCM, refSeqInfo, seqInfo);
 
         fst_lvl_res[i] = matchedInfo;
-        //cout << "Hello from the other side: " << matchedInfo.size() << endl;
 
         if(i < sec_ref_seq_num){
             create_hash_for_ref(matchedInfo, i);
         }
 
         if(i == 0){
-            save_matched_info_vector(file, matchedInfo);
+            save_matched_info_vector(HRCM, matchedInfo);
         } else {
-            second_level_matching(file, matchedInfo, i+1);
+            second_level_matching(HRCM, matchedInfo, i+1);
         }
     }
 
-    file.close();
+    HRCM.close();
+
+
+    ofstream DESC(desc);
+
+    if(!DESC.is_open()){
+        cerr << "ERROR: An error has occured ...";
+        exit(1);
+    }
+
+    save_identifier_data(DESC);
+
+    DESC.close();
     clear();
+    cout << "Compression ended!!!\n";
 }
