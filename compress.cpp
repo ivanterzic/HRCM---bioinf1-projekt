@@ -653,7 +653,7 @@ inline void save_special_charachter_data(ofstream& of, SequenceInfo &seqInfo){
     vector<int> flag(27, -1), arr;
 
     for(int i = 0; i < seqInfo.specialCharInfo.size(); i++){
-        of << seqInfo.specialCharInfo[i] << " ";
+        of << seqInfo.specialCharInfo[i].position << " ";
         if(seqInfo.specialCharInfo[i].character == '-') temp = 26;
         else temp = seqInfo.specialCharInfo[i].character - 'A';
 
@@ -691,9 +691,9 @@ inline void save_special_charachter_data(ofstream& of, SequenceInfo &seqInfo){
 
 inline void save_identifier_data(ofstream& of){
     length_encoding(of, line_width_vec, 0);
-
+    of << "\n";
     for(int i = 0; i < seq_names.size(); i++){
-        of << ">" << identifier_vec[i]<<"\n";
+        of << identifier_vec[i]<<"\n";
     }
 }
 

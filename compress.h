@@ -17,4 +17,7 @@ vector<vector<MatchedInfo>> fst_lvl_res;
 vector<substringInfo> mismatchedLowercase;
 vector<int> matchedLowercase;
 
+vector<int> line_width_vec;
+vector<string> identifier_vec;
+
 inline void compress(int percent);
