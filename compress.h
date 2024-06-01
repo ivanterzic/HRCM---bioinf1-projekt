@@ -4,7 +4,7 @@
 
 using namespace std;
 
-vector<int> H(hashTableLen);
+int* H;
 vector<int> L;
 
 string ref_seq;
