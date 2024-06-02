@@ -7,6 +7,7 @@ using namespace std;
 int* H;
 vector<int> L;
 
+string to_store_name;
 string ref_seq;
 vector<string> seq_names(0);
 

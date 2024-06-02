@@ -1,5 +1,7 @@
 #include <iostream>
 #include <fstream>
+#include <sys/time.h>  //Linux
+#include <unistd.h>   //linux
 #include <string>
 #include <vector>
 #include <math.h>
@@ -54,8 +56,10 @@ extern int* H;
 extern vector<int> L;
 
 static int sec_ref_seq_num;
+
 extern vector<string> seq_names;
 extern string ref_seq;
+extern string to_store_name;
 
 extern vector<vector<int>> H_sec;
 extern vector<vector<int>> L_sec;
@@ -319,7 +323,6 @@ inline void firstLevelMatching(string &rSeq, string &tSeq, vector<MatchedInfo> &
     int i, k, position, length;
     int previos_position = 0;
     //const int minimumReplaceLength = 0;
-    createKMerHashTable(rSeq);
     // initalization of the mismatchedInfo string
     string mismatchedInfo = "";
     // for i = 0 to n_t - k
@@ -659,8 +662,7 @@ inline void save_special_charachter_data(ofstream& of, SequenceInfo &seqInfo){
     int temp;
     vector<int> flag(27, -1), arr;
 
-    of << "/ " << arr.size() << " ";
-
+    of << "/ "; 
     for(int i = 0; i < seqInfo.specialCharInfo.size(); i++){
         of << seqInfo.specialCharInfo[i].position << " ";
         if(seqInfo.specialCharInfo[i].character == '-') temp = 26;
@@ -671,6 +673,8 @@ inline void save_special_charachter_data(ofstream& of, SequenceInfo &seqInfo){
             flag[temp] = arr.size() - 1;
         }
     }
+
+    of << arr.size() << " ";
 
     for(int el : arr){
         of << el << " ";
@@ -735,9 +739,9 @@ inline void save_lowercase_charachter_data(ofstream& of, SequenceInfo& seqInfo){
 
 inline void save_all_other_data(ofstream& of, ReferenceSequenceInfo &refSeqInfo, SequenceInfo &seqInfo){
     matchLowercaseCharacters(refSeqInfo, seqInfo);
+    save_lowercase_charachter_data(of, seqInfo);
     save_n_charachter_data(of, seqInfo);
     save_special_charachter_data(of, seqInfo);
-    save_lowercase_charachter_data(of, seqInfo);
 }
     
 inline void initilize(){
@@ -780,6 +784,7 @@ inline void compress(int percent){
     extractReferenceSequenceInfo(ref_seq, refSeqInfo);
     L.resize(refSeqInfo.sequence.size() - kMerLength + 1);
     
+    createKMerHashTable(refSeqInfo.sequence);
     string hrcm = "_storage_.hrcm";
     string desc = "_identifier_.desc";
 
@@ -797,6 +802,7 @@ inline void compress(int percent){
         vector<MatchedInfo> matchedInfo;
         extractSequenceInfo(seq_names[i], seqInfo, i);
         firstLevelMatching(refSeqInfo.sequence, seqInfo.sequence, matchedInfo);
+    
 
         save_all_other_data(HRCM, refSeqInfo, seqInfo);
         cout << "Here" << endl;
@@ -827,5 +833,12 @@ inline void compress(int percent){
 
     DESC.close();
     clear();
+
+    string cmd = "zip " + to_store_name + ".zip " + hrcm + " " + desc;
+    system(cmd.data());
+
+    cmd = "rm -f " + hrcm + " " + desc;
+    system(cmd.data());
+
     cout << "Compression ended!!!\n";
 }

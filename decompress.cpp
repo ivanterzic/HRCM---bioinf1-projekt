@@ -34,6 +34,8 @@ struct MatchedInfo {
     string mismatched;
 };
 
+extern vector<string> zipped_files;
+
 // reconstructing original sequence from sequence information
 // 3.1 Sequence information extraction for to-be-decompressed sequence
 // Ivan Terzic
@@ -120,13 +122,13 @@ inline void reverseFirstLevelMatching(string &rSeq, vector<MatchedInfo> &matched
     }
 }
 
-void decompress(){
-        // The sequence information is extracted from the compressed file.
+void decompress(int percent){
+        /* // The sequence information is extracted from the compressed file.
         string compressedFileName;
-        /*Matched info for test :
-        0 19 
-        -2 11 T
-        4 9 T*/
+        //Matched info for test :
+        //0 19 
+        //-2 11 T
+        //4 9 T
         string rseq = "AGCTGGGCCCTTAAGGTTTCCCGGGAAAAAATTTCCCTTTG";
         string tseq = "AGCTGGGCCCTTAAGGTTTTTTCCCGGGAAATTTCCCTTTG";
 
@@ -136,12 +138,27 @@ void decompress(){
         MatchedInfo m3 = {4, 9, "T"};
         matchedInfo.push_back(m1);
         matchedInfo.push_back(m2);
-        matchedInfo.push_back(m3);
+    matchedInfo.push_back(m3);
+    */
+    
+    string hrcm = "_storage_.hrcm";
+    string desc = "_identifier_.desc";
+    string cmd;
+
+    for(int i = 0; i < zipped_files.size(); i++){
+        cmd = "unzip " + zipped_files[i];
+        system(cmd.data());
+
         
-        string originalBaseString = "";
-        reverseFirstLevelMatching(rseq, matchedInfo, originalBaseString);
-        cout << originalBaseString << endl;
-        cout << tseq << endl;
-        return;
+
+        cmd = "rm -f " + hrcm + " " + desc;
+        system(cmd.data());
+    }
+
+    //string originalBaseString = "";
+    //reverseFirstLevelMatching(rseq, matchedInfo, originalBaseString);
+    //cout << originalBaseString << endl;
+    //cout << tseq << endl;
+    //return;
 }
 

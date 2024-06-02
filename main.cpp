@@ -10,10 +10,29 @@
 #include <vector>
 #include <cmath>
 #include "compress.h"
+#include "decompress.h"
 
 using namespace std;
 
-void readFile(const string& filename){
+void extract_name_for_zip(string extract, string& extractor){
+    string saver = "";
+    bool was_first_zero = false;
+    for(int i = extract.size() - 1; i >= 0; i--){
+        if(extract[i] == '.' && !was_first_zero){
+            was_first_zero = true;
+            saver = "";
+        }
+
+        if(extract[i] == '/'){
+            extractor = saver;
+            break;
+        }
+
+        saver += extract[i];
+    }
+}
+
+void readFile(const string& filename, vector<string>& files){
     ifstream file(filename);
     string line;
     if (!file.is_open()) {
@@ -23,7 +42,7 @@ void readFile(const string& filename){
 
     while (getline(file, line)){
         if(!line.empty()){
-            seq_names.push_back(line);
+            files.push_back(line);
         }
     }
     file.close();
@@ -45,6 +64,7 @@ int main(int argc, char *argv[]) {
     bool f_value = false, t_value = false, r_value = false, p_value = false, m_value = false;
     int percent = 10;
     string mode, ref, toBe;
+    vector<string> files;
 
     struct timeval start, end;
     gettimeofday(&start, nullptr);
@@ -84,7 +104,6 @@ int main(int argc, char *argv[]) {
         }
     }
 
-
     if (!m_value || !r_value){
         std::cout << "Missing method or referance parameter!\n";
         show_usage();
@@ -96,17 +115,19 @@ int main(int argc, char *argv[]) {
         return 0;
     }
     if(t_value){
-        seq_names.push_back(toBe);
+        files.push_back(toBe);
     } else if (f_value){
         cout << "Was hier\n";
-        readFile(toBe);
+        readFile(toBe, files);
     }
 
     if(mode == "compress"){
+        seq_names = files;
         compress(percent);
 
     } else if(mode == "decompress"){
-
+        zipped_files = files;
+        decompress(percent);
     } else {
         std::cout << "Invalid method used!\n";
         show_usage();
