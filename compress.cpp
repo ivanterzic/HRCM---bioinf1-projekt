@@ -410,7 +410,8 @@ inline void firstLevelMatching(string &rSeq, string &tSeq, vector<MatchedInfo> &
 }
 
 inline void save_matched_info(ofstream& of, MatchedInfo& info){
-    of << info.position << " " << info.length << " " << info.mismatched << " ";
+    if(info.mismatched.empty()) of << info.position << " " << info.length << " . ";
+    else of << info.position << " " << info.length << " " << info.mismatched << " ";
 }
 
 inline void save_matched_info_vector(ofstream& of, vector<MatchedInfo>& vec){
@@ -437,7 +438,7 @@ inline void matchLowercaseCharacters(ReferenceSequenceInfo &refSeqInfo, Sequence
 
     int lengthLowercase_t = seqInfo.lowercaseInfo.size(), lengthLowecase_r = refSeqInfo.lowercaseInfo.size();
     // initialize matched lowercase information
-    vector<int> matchedLowercase = vector<int>(lengthLowercase_t);
+    matchedLowercase = vector<int>(lengthLowercase_t);
     // 0 means that the lowercase character object is not matched, the indexes will be shifted by 1
     for (int i = 0; i < lengthLowercase_t; i++){
         matchedLowercase[i] = 0;
@@ -565,8 +566,8 @@ inline void create_hash_for_ref(vector<MatchedInfo>& matched_info, int el) {
 }
 
 inline bool equal_info(MatchedInfo fst, MatchedInfo sec){
-    cout << "FST: " << fst.length << ", " << fst.position << ", " << fst.mismatched << endl;
-    cout << "SEC: " << sec.length << ", " << sec.position << ", " << sec.mismatched << endl;
+    //cout << "FST: " << fst.length << ", " << fst.position << ", " << fst.mismatched << endl;
+    //cout << "SEC: " << sec.length << ", " << sec.position << ", " << sec.mismatched << endl;
         
     if(fst.length == sec.length && fst.mismatched == sec.mismatched && fst.position == sec.position){
         return true;
@@ -659,16 +660,22 @@ inline void save_substring_info(ofstream& of, vector<substringInfo>& info){
 }
 
 inline void save_special_charachter_data(ofstream& of, SequenceInfo &seqInfo){
+    int size = seqInfo.specialCharInfo.size();
+    of << size << " ";
+    if(size == 0){
+        return;
+    }
+    
     int temp;
     vector<int> flag(27, -1), arr;
 
-    of << "/ "; 
     for(int i = 0; i < seqInfo.specialCharInfo.size(); i++){
         of << seqInfo.specialCharInfo[i].position << " ";
+
         if(seqInfo.specialCharInfo[i].character == '-') temp = 26;
         else temp = seqInfo.specialCharInfo[i].character - 'A';
 
-        if(flag[temp]){
+        if(flag[temp] == -1){
             arr.push_back(temp);
             flag[temp] = arr.size() - 1;
         }
@@ -680,7 +687,7 @@ inline void save_special_charachter_data(ofstream& of, SequenceInfo &seqInfo){
         of << el << " ";
     }
 
-    if(arr.size() != -1){
+    if(arr.size() != 1){
         unsigned int bit_num = ceil(log(arr.size()) / log(2));
         unsigned int v_num = floor(32.0 / bit_num);     //the number of characters can be represented in 4 bytes
 		for (int i = 0; i < seqInfo.specialCharInfo.size(); )
@@ -690,7 +697,7 @@ inline void save_special_charachter_data(ofstream& of, SequenceInfo &seqInfo){
 			{
 				v <<= bit_num;
 
-                if(seqInfo.specialCharInfo[i].character == '-') temp = 27;
+                if(seqInfo.specialCharInfo[i].character == '-') temp = 26;
                 else temp = seqInfo.specialCharInfo[i].character - 'A';
 
 				v += flag[temp];
@@ -698,7 +705,6 @@ inline void save_special_charachter_data(ofstream& of, SequenceInfo &seqInfo){
             of << v << " ";
 		}
     }
-    of << "\n";
 }
 
 inline void save_identifier_data(ofstream& of){
@@ -710,38 +716,32 @@ inline void save_identifier_data(ofstream& of){
 }
 
 inline void save_n_charachter_data(ofstream& of, SequenceInfo& seqInfo){
-    if(seqInfo.nInfo.size() > 0){
-        of << "; ";
-        save_substring_info(of, seqInfo.nInfo);
-        of << "\n";
-    }
+    save_substring_info(of, seqInfo.nInfo);
 }
 
-inline void save_lowercase_charachter_data(ofstream& of, SequenceInfo& seqInfo){
-    if(seqInfo.lowercaseInfo.size() > 0){
-        of << ": ";
-        bool flag = false;
+inline void save_lowercase_charachter_data(ofstream& of, SequenceInfo& seqInfo, ReferenceSequenceInfo& refSeqInfo){
+    bool flag = false;
+    if(seqInfo.lowercaseInfo.size() > 0 && refSeqInfo.lowercaseInfo.size() > 0){
+        matchLowercaseCharacters(refSeqInfo, seqInfo);
         if(2 * mismatchedLowercase.size() < seqInfo.lowercaseInfo.size()){
             flag = true;
             of << flag << " ";
             length_encoding(of, matchedLowercase, 1);
-            of << "+ ";
             save_substring_info(of, mismatchedLowercase);
         }
+    }
 
-        if (!flag){
-            of << flag << " ";
-            save_substring_info(of, seqInfo.lowercaseInfo);
-        }
-        of << "\n";
+    if (!flag){
+        of << flag << " ";
+        save_substring_info(of, seqInfo.lowercaseInfo);
     }
 }
 
 inline void save_all_other_data(ofstream& of, ReferenceSequenceInfo &refSeqInfo, SequenceInfo &seqInfo){
-    matchLowercaseCharacters(refSeqInfo, seqInfo);
-    save_lowercase_charachter_data(of, seqInfo);
     save_n_charachter_data(of, seqInfo);
+    save_lowercase_charachter_data(of, seqInfo, refSeqInfo);
     save_special_charachter_data(of, seqInfo);
+    of << "\n";
 }
     
 inline void initilize(){
@@ -834,11 +834,11 @@ inline void compress(int percent){
     DESC.close();
     clear();
 
-    string cmd = "zip " + to_store_name + ".zip " + hrcm + " " + desc;
-    system(cmd.data());
+    //string cmd = "zip " + to_store_name + ".zip " + hrcm + " " + desc;
+    //system(cmd.data());
 
-    cmd = "rm -f " + hrcm + " " + desc;
-    system(cmd.data());
+    //cmd = "rm -f " + hrcm + " " + desc;
+    //system(cmd.data());
 
     cout << "Compression ended!!!\n";
 }

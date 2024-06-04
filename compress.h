@@ -1,7 +1,6 @@
 
 #include <string>
-#include "compress.cpp"
-
+#include "compress.cpp" 
 using namespace std;
 
 int* H;
