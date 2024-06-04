@@ -2,54 +2,9 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include "common.h"
 
 using namespace std;
-
-// struct for substring information
-struct substringInfo {
-    int startFromLastElement;
-    int length;
-};
-
-// struct for special character information
-struct SpecialCharInfo {
-    int position;
-    char character;
-};
-
-// struct for sequence information
-struct SequenceInfo {
-    string identifier;
-    string sequence;
-    vector<substringInfo> lowercaseInfo;
-    vector<substringInfo> nInfo;
-    vector<SpecialCharInfo> specialCharInfo;
-    int lineWidth;
-};
-
-struct ReferenceSequenceInfo {
-    string identifier;
-    string sequence;
-    vector<substringInfo> lowercaseInfo;
-};
-
-//Struct for representing information about the matched segment after first-level matching
-struct MatchedInfo {
-    int position;
-    int length;
-    string mismatched;
-};
-
-static int sec_ref_seq_num;
-extern string name_of_zip_file;
-extern string dec_ref_seq_name;
-extern vector<string> zipped_files;
-extern vector<int> dec_line_width_vec;
-extern vector<string> dec_identifier_vec;
-extern vector<vector<MatchedInfo>> dec_fst_lvl_matching;
-
-static vector<substringInfo> mismathcedInfoVec;
-static vector<int> matchedInfoVec;
 
 // reconstructing original sequence from sequence information
 // 3.1 Sequence information extraction for to-be-decompressed sequence
@@ -136,100 +91,46 @@ inline void reverseFirstLevelMatching(string &rSeq, vector<MatchedInfo> &matched
         relativeIndex += info.length;
     }
 }
-// Function for extracting information from the reference sequence file
-// 3.1 Sequence information extraction for the reference sequence
-// Ivan Terzic
-inline void extractReferenceSequenceInfo(string filename, ReferenceSequenceInfo& seqInfo){
-    // file opening and reading
-    ifstream file(filename);
-    string line, sequence = "";
-    int lineCount = 0;
-    while (getline(file, line)){
-        // skip the comment lines
-        if (line[0] == ','){
-            continue;
-        }
-        if (lineCount == 0){
-            seqInfo.identifier = line;
-        } else {
-            if (lineCount == 1){
-                //seqInfo.lineWidth = line.size();
-            }
-            sequence += line;
-        }
-        ++lineCount;
-    }
-    file.close();
-
-	// initialization of variables for storing information about lowercase
-    int lowercaseStart = -1;
-    int lowercaseLength = 0;
-    int distanceFromLastLowercase = 0;
-
-    // Lowercase character information extraction from the reference sequence, the logic is the same as in the previous function
-    for (unsigned int i = 0; i < sequence.size(); ++i){
-        // if the character is lowercase, it is converted to uppercase and the length of the lowercase substring is increased
-        if (islower(sequence[i])){
-            if (lowercaseStart == -1){
-                // if there is already a record, it is taken into account, otherwise the current index is taken
-                if (seqInfo.lowercaseInfo.size() > 0){
-                    lowercaseStart = distanceFromLastLowercase;
-                } else {    
-                    lowercaseStart = i;
-                }
-            }
-            // convert to uppercase and increase the length
-            sequence[i] = toupper(sequence[i]);
-            ++lowercaseLength;
-        } else {
-            // if it is an uppercase letter, then if there is a current lowercase substring, it is added to the vector and the counters are restarted
-            if (lowercaseStart != -1){
-                seqInfo.lowercaseInfo.push_back({lowercaseStart, lowercaseLength});
-                lowercaseStart = -1;
-                lowercaseLength = 0;
-                distanceFromLastLowercase = 0;
-            }
-            // if there is no current substring, the counter is increased
-            distanceFromLastLowercase++;
-        }
-       
-    }
-
-    if (lowercaseStart != -1){
-        seqInfo.lowercaseInfo.push_back({lowercaseStart, lowercaseLength});
-    }
-    
-    seqInfo.sequence = sequence; 
-
-    // removing all N characters from the sequence and special characters
-    for (unsigned int i = 0; i < seqInfo.sequence.size(); ++i){
-        if (seqInfo.sequence[i] == 'N' || seqInfo.sequence[i] == 'X' || seqInfo.sequence[i] == 'x' || seqInfo.sequence[i] == '-'){
-            seqInfo.sequence.erase(i, 1);
-            --i;
-        }
-    } 
-}
 
 inline void reverse_lowercase_match(SequenceInfo& info, ReferenceSequenceInfo& ref_info){
     int loc;
-    for(int i = 0, j = 0; i < matchedInfoVec.size(); i++){
-        if(matchedInfoVec[i] == 0){
-            info.lowercaseInfo[i].startFromLastElement = mismathcedInfoVec[i].startFromLastElement;
-            info.lowercaseInfo[i].length = mismathcedInfoVec[j].startFromLastElement;
+    for(int i = 0, j = 0; i < matchedLowercase.size(); i++){
+        if(matchedLowercase[i] == 0){
+            info.lowercaseInfo[i].startFromLastElement = mismatchedLowercase[i].startFromLastElement;
+            info.lowercaseInfo[i].length = mismatchedLowercase[j].startFromLastElement;
             j++;
         } else {
-            info.lowercaseInfo[i].startFromLastElement = ref_info.lowercaseInfo[matchedInfoVec[i]].startFromLastElement;
-            info.lowercaseInfo[i].length = ref_info.lowercaseInfo[matchedInfoVec[i]].length;
+            info.lowercaseInfo[i].startFromLastElement = ref_info.lowercaseInfo[matchedLowercase[i]].startFromLastElement;
+            info.lowercaseInfo[i].length = ref_info.lowercaseInfo[matchedLowercase[i]].length;
         }
     }
 }
 
-inline void reverse_second_lvl_matching(){
+inline void extract_matched_info(ifstream& is, vector<MatchedInfo>& info){
+    char test;
+    int pos, len, id;
+    string str;
 
-}
+    is >> test;
+    while(test != '<'){
+        //cout << test << " " << endl;
+        if(test == '@'){
+            is >> pos >> len >> str;
+            info.push_back({
+                pos, len, str
+            });
+        }
 
-inline void print_to_file(){
+        if(test == '#'){
+            is >> id >> pos >> len;
 
+            for(int j = 0; j < len; j++){
+                info.push_back(fst_lvl_res[id][pos + j]);
+            }
+        }
+
+        is >> test;
+    }
 }
 
 inline void read_matched_info(string hrcm_line, vector<MatchedInfo>& matched_info){
@@ -242,7 +143,7 @@ inline void read_matched_info(string hrcm_line, vector<MatchedInfo>& matched_inf
     int i;
 
     for(i = 0; i < hrcm_line.size(); i++){
-        if(hrcm_line[i] = ' '){
+        if(hrcm_line[i] == ' '){
             if(was_blank_space){
                 code.push_back("");
                 continue;
@@ -263,7 +164,7 @@ inline void read_matched_info(string hrcm_line, vector<MatchedInfo>& matched_inf
     code.clear();
 }
 
-inline void extract_file_name(string path, string& filename){
+void extract_file_name(string path, string& filename){
     string name = "";
     bool was_first_dot = false;
     int i;
@@ -271,6 +172,7 @@ inline void extract_file_name(string path, string& filename){
         if(path[i] == '.' && !was_first_dot){
             name = "";
             was_first_dot = true;
+            continue;
         }
 
         if(path[i] == '/'){
@@ -329,12 +231,12 @@ inline void extract_substring_info(ifstream& is, vector<substringInfo> info){
 }
 
 inline void extract_identifier_data(ifstream& is){
-    length_decoding(is, dec_line_width_vec, 0);
+    length_decoding(is, line_width_vec, 0);
     string line;
-    while(getline(is, line)){
-        dec_identifier_vec.push_back(line);
+    while(!is.eof()){
+        is >> line;
+        identifier_vec.push_back(line);
     }
-
 }
 
 inline void extract_special_charachter_data(ifstream& is, SequenceInfo& info){
@@ -342,7 +244,6 @@ inline void extract_special_charachter_data(ifstream& is, SequenceInfo& info){
     is >> special_character_vector_len;
 
     info.specialCharInfo = vector<SpecialCharInfo>(special_character_vector_len);
-
     if(special_character_vector_len > 0){
         for(int i = 0; i < special_character_vector_len; i++){
             is >> pos;
@@ -388,11 +289,11 @@ inline void extract_special_charachter_data(ifstream& is, SequenceInfo& info){
 inline void extract_lowercase_data(ifstream& is, SequenceInfo& info, ReferenceSequenceInfo& ref_info){ 
     bool flag;
     is >> flag;
-    if(flag){
+    if(!flag){
         extract_substring_info(is, info.lowercaseInfo);
     } else {
-        length_decoding(is, matchedInfoVec, 1);
-        extract_substring_info(is, mismathcedInfoVec);
+        length_decoding(is, matchedLowercase, 1);
+        extract_substring_info(is, mismatchedLowercase);
         reverse_lowercase_match(info, ref_info);
     }
 }
@@ -407,25 +308,28 @@ inline void extract_other_data(ifstream& is, SequenceInfo& info, ReferenceSequen
     extract_special_charachter_data(is, info);
 }
 
-inline void initilize(){
-    dec_fst_lvl_matching.reserve(sec_ref_seq_num);
+inline void dec_initilize(){
+    fst_lvl_res=vector<vector<MatchedInfo>>(sec_ref_seq_num);
 }
 
-inline void clear(){
-    dec_fst_lvl_matching.clear();
+inline void dec_clear(){
+    fst_lvl_res.clear();
 }
 
-inline void decompress(int percent){
-    sec_ref_seq_num = ceil((double)percent * (double)zipped_files.size() / 100.0);
+void decompress(int percent){
+    sec_ref_seq_num = ceil((double)percent * (double)seq_file_names.size() / 100.0);
+    dec_initilize();
+    cout << "Compression started!" << endl;
+    
     string hrcm = "_storage_.hrcm";
     string desc = "_identifier_.desc";
     string cmd;
-    cmd = "unzip " + name_of_zip_file + ".7za";
-    //system(cmd.data());
+    cmd = "unzip " + zip_file_name + ".zip";
+    system(cmd.data());
 
     string filename;
     ReferenceSequenceInfo ref_info;
-    extractReferenceSequenceInfo(dec_ref_seq_name, ref_info);
+    extractReferenceSequenceInfo(ref_seq_file_name, ref_info);
 
     ifstream DESC(desc);
     if(!DESC.is_open()){
@@ -444,19 +348,29 @@ inline void decompress(int percent){
     }
 
     string line_from_HRCM;
-    SequenceInfo info;
-    for(int i = 0; i < zipped_files.size(); i++){
+    for(int i = 0; i < seq_file_names.size(); i++){
+        SequenceInfo info;
         vector<MatchedInfo> matchedInfo;
-        info.identifier = zipped_files[i];
-        
-        extract_other_data(HRCM, info, ref_info);
+        info.identifier = identifier_vec[i];
+        info.lineWidth = line_width_vec[i];
 
-        extract_file_name(zipped_files[i], filename);
+        extract_file_name(seq_file_names[i], filename);
+        extract_other_data(HRCM, info, ref_info);
+        extract_matched_info(HRCM, matchedInfo);
+
+        if(i < sec_ref_seq_num){
+            fst_lvl_res[i] = matchedInfo;
+        }
+
+        reverseFirstLevelMatching(ref_info.sequence, matchedInfo, info.sequence);
+        originalSequenceFromSequenceInfo(filename+".fasta", info);
     }
 
     HRCM.close();
+    dec_clear();
+    cmd = "rm -f " + hrcm + " " + desc;
+    system(cmd.data());
 
-    //cmd = "rm -f " + hrcm + " " + desc;
-    //system(cmd.data());
+    cout << "Decompression ended!!!\n";
 }
 

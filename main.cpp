@@ -9,34 +9,10 @@
 #include <string>
 #include <vector>
 #include <cmath>
-#include "compress.h"
+#include "common.h"
 //#include "decompress.h"
 
 using namespace std;
-
-void extract_name_for_zip(string extract, string& extractor){
-    string saver = "";
-    bool was_first_zero = false;
-    int i;
-    for(i = extract.size() - 1; i >= 0; i--){
-        if(extract[i] == '.' && !was_first_zero){
-            was_first_zero = true;
-            saver = "";
-        }
-
-        if(extract[i] == '/'){
-            extractor = saver;
-            break;
-        }
-
-        saver += extract[i];
-    }
-
-    extractor = "";
-    for(i = saver.size() - 1; i >= 0; i--){
-        extractor += saver[i];
-    }
-}
 
 void readFile(const string& filename, vector<string>& files){
     ifstream file(filename);
@@ -69,8 +45,7 @@ int main(int argc, char *argv[]) {
 
     bool f_value = false, t_value = false, r_value = false, p_value = false, m_value = false;
     int percent = 10;
-    string mode, ref, toBe;
-    vector<string> files;
+    string mode, toBe;
 
     struct timeval start, end;
     gettimeofday(&start, nullptr);
@@ -90,7 +65,7 @@ int main(int argc, char *argv[]) {
                 break;
             case 'r':
                 r_value = true;
-                ref = optarg;
+                ref_seq_file_name = optarg;
                 break;
             case 'f':
                 f_value = true;
@@ -121,23 +96,18 @@ int main(int argc, char *argv[]) {
         return 0;
     }
     if(t_value){
-        files.push_back(toBe);
+        seq_file_names.push_back(toBe);
     } else if (f_value){
         cout << "Was hier\n";
-        readFile(toBe, files);
+        readFile(toBe, seq_file_names);
     }
+    
+    extract_file_name(toBe, zip_file_name);
 
     if(mode == "compress"){
-        extract_name_for_zip(toBe, to_store_name);
-        ref_seq = ref;
-        seq_names = files;
         compress(percent);
-
     } else if(mode == "decompress"){
-        //extract_name_for_zip(toBe, name_of_zip_file);
-        //dec_ref_seq = ref;
-        //zipped_files = files;
-        //decompress(percent);
+        decompress(percent);
     } else {
         std::cout << "Invalid method used!\n";
         show_usage();
@@ -146,7 +116,7 @@ int main(int argc, char *argv[]) {
 
     gettimeofday(&end, nullptr);
     double duration = (end.tv_sec - start.tv_sec) * 1000.0 + (end.tv_usec - start.tv_usec) /1000.0;
-    std::cout << "Duration of program was " << duration << "ms\n";
+    std::cout << "Duration of program was " << duration << " ms.\n";
 
     return 0;
 }
