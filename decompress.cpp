@@ -51,7 +51,7 @@ inline void originalSequenceFromSequenceInfo(string outputFileName, SequenceInfo
                 nextSpecialIndex = -1;
             }
         } 
-    }
+    }        
     // setting up the index for lowercase characters
     int nextLowercaseIndex = 0;
     // for each substring in the vector of lowercase characters
@@ -116,6 +116,10 @@ inline void extract_matched_info(ifstream& is, vector<MatchedInfo>& info){
         //cout << test << " " << endl;
         if(test == '@'){
             is >> pos >> len >> str;
+            if(strcmp(str.data(), ".") == 0){
+                str = "";
+            }
+
             info.push_back({
                 pos, len, str
             });
@@ -203,7 +207,7 @@ inline void length_decoding(ifstream& is, vector<int>& vec, int tol){
     for(int i = 1; i < code.size(); i+=2){
         size += code[i];
     }
-
+    cout << "Vec size: " << size << endl;
     if(size > 0){
         vec = vector<int>(size);
         len = 0;
@@ -218,13 +222,13 @@ inline void length_decoding(ifstream& is, vector<int>& vec, int tol){
     code.clear();
 }
 
-inline void extract_substring_info(ifstream& is, vector<substringInfo> info){
+inline void extract_substring_info(ifstream& is, vector<substringInfo>& info){
     int size, el1, el2;
     is >> size;
+    cout << "Substring size: " << size << endl;
     info = vector<substringInfo>(size);
 
-    for(int i = 0; i < size; i=1){
-
+    for(int i = 0; i < size; i++){
         is >> el1 >> el2;
         info[i] = {el1, el2};
     }
@@ -243,22 +247,55 @@ inline void extract_special_charachter_data(ifstream& is, SequenceInfo& info){
     int special_character_vector_len, pos;
     is >> special_character_vector_len;
 
+    char c;
+    int bitCount = 0, position = 0;
+    unsigned int packedData = 0;
+    const int bitsPerChar = 2;
+    const int charsPerInt = sizeof(unsigned int) * 8 / bitsPerChar;
+    const int arr_size = ceil((double)special_character_vector_len/(double)charsPerInt);
+
     info.specialCharInfo = vector<SpecialCharInfo>(special_character_vector_len);
     if(special_character_vector_len > 0){
         for(int i = 0; i < special_character_vector_len; i++){
             is >> pos;
             info.specialCharInfo[i].position = pos;
         }
+        int size = 2*special_character_vector_len;
+        for(int i = 0; i < arr_size; i++){
+            is >> packedData;
+            cout << "Here" << endl;
 
-        vector<char> arr;
+            for(bitCount = min(charsPerInt * bitsPerChar, size); bitCount > 0; bitCount -= bitsPerChar){
+                unsigned int encodedChar = (packedData >> (bitCount - bitsPerChar)) & 0b11;
+                char decodedChar;
+                switch (encodedChar) {
+                case 0b00:
+                    decodedChar = '-';
+                    break;
+                case 0b01:
+                    decodedChar = 'X';
+                    break;
+                default:
+                    decodedChar = '*';
+                    break;
+                }
+                if(position >= special_character_vector_len) break;
+                info.specialCharInfo[position].character = decodedChar;
+                position++;
+            }
+            size -= charsPerInt * bitsPerChar;
+        }
+
+        /*vector<char> arr;
         int size, temp;
         is >> size;
 
         for(int i = 0; i < size; i++){
             is >> temp;
             
-            if(temp == 26) arr.push_back('-');
-            else arr.push_back((char)(temp + 'A'));
+            if(temp == 0) arr.push_back('-');
+            else if(temp == 1) arr.push_back('X');
+            else  arr.push_back('x');
         }
 
         if(size != 1){
@@ -282,7 +319,8 @@ inline void extract_special_charachter_data(ifstream& is, SequenceInfo& info){
                     info.specialCharInfo[i].character = temp_arr[j];
                 }
 		    }
-        }
+        }*/
+        
     }
 }
 
@@ -314,6 +352,24 @@ inline void dec_initilize(){
 
 inline void dec_clear(){
     fst_lvl_res.clear();
+}
+
+inline void print_all(SequenceInfo info){
+    cout << "identifier: " << info.identifier << endl;
+    cout << "sequence: " << info.sequence << endl;
+    cout << "lineWidth: " << info.lineWidth << endl;
+    cout << "Lowercase:" << endl; 
+    for(substringInfo in : info.lowercaseInfo){
+        cout << in.startFromLastElement << " " << in.length << endl;
+    }
+    cout << "\nspecialCharInfo:" << endl; 
+    for(SpecialCharInfo in : info.specialCharInfo){
+        cout << in.position << " " << in.character << endl;
+    }
+    cout << "\nnInfo:" << endl;
+    for(substringInfo in : info.nInfo){
+        cout << in.startFromLastElement << " " << in.length << endl;
+    }
 }
 
 void decompress(int percent){
@@ -360,9 +416,13 @@ void decompress(int percent){
 
         if(i < sec_ref_seq_num){
             fst_lvl_res[i] = matchedInfo;
-        }
+        }        
 
-        reverseFirstLevelMatching(ref_info.sequence, matchedInfo, info.sequence);
+        reverseFirstLevelMatching(ref_info.sequence, matchedInfo, info.sequence);        
+        //cout << info.sequence << endl;
+
+        //print_all(info);
+
         originalSequenceFromSequenceInfo(filename+".fasta", info);
     }
 

@@ -585,15 +585,61 @@ inline void save_special_charachter_data(ofstream& of, SequenceInfo &seqInfo){
     if(size == 0){
         return;
     }
+    //for(SpecialCharInfo in : seqInfo.specialCharInfo){
+    //    cout << in.position << " " << in.character << endl;
+    //}
+    char c;
+    int bitCount = 0, arr_count = 0;
+    unsigned int packedData = 0;
+    const int bitsPerChar = 2;
+    const int charsPerInt = sizeof(unsigned int) * 8 / bitsPerChar;
+    const int arr_size = ceil((double)size/(double)charsPerInt);
+    unsigned int* arr = new unsigned int[arr_size];
     
+    for(int i = 0; i < size; i++){
+        of << seqInfo.specialCharInfo[i].position << " ";
+        unsigned int encodedChar;
+        c = seqInfo.specialCharInfo[i].character;
+        switch (seqInfo.specialCharInfo[i].character) {
+            case '-':
+                encodedChar = 0b00;
+                break;
+            case 'X':
+                encodedChar = 0b01;
+                break;
+            default:
+                encodedChar = 0b10;
+                break;
+        }
+        packedData = (packedData << bitsPerChar) | encodedChar;
+        bitCount += bitsPerChar;
+
+        if (bitCount >= charsPerInt * bitsPerChar) {
+            bitCount = 0;
+            arr[arr_count] = packedData;
+            arr_count++;
+        }
+    }
+
+    if(bitCount > 0){
+        arr[arr_count] = packedData;
+    }
+
+    for(int i = 0; i < arr_size; i++){
+        of << arr[i] << " ";
+    }
+    delete[] arr;
+    /*
     int temp;
-    vector<int> flag(27, -1), arr;
+    vector<int> flag(3, -1);
+    vector<char> arr;
 
     for(int i = 0; i < seqInfo.specialCharInfo.size(); i++){
         of << seqInfo.specialCharInfo[i].position << " ";
 
-        if(seqInfo.specialCharInfo[i].character == '-') temp = 26;
-        else temp = seqInfo.specialCharInfo[i].character - 'A';
+        if(seqInfo.specialCharInfo[i].character == '-') temp = 0;
+        else if(seqInfo.specialCharInfo[i].character == 'X') temp = 1;//seqInfo.specialCharInfo[i].character - 'A';
+        else temp = 2;
 
         if(flag[temp] == -1){
             arr.push_back(temp);
@@ -617,14 +663,15 @@ inline void save_special_charachter_data(ofstream& of, SequenceInfo &seqInfo){
 			{
 				v <<= bit_num;
 
-                if(seqInfo.specialCharInfo[i].character == '-') temp = 26;
-                else temp = seqInfo.specialCharInfo[i].character - 'A';
+                if(seqInfo.specialCharInfo[i].character == '-') temp = 0;
+                else if(seqInfo.specialCharInfo[i].character == 'X') temp = 1;//seqInfo.specialCharInfo[i].character - 'A';
+                else temp = 2;
 
 				v += flag[temp];
 			}
             of << v << " ";
 		}
-    }
+    }*/
 }
 
 inline void save_identifier_data(ofstream& of){
